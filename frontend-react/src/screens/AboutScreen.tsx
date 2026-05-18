@@ -36,6 +36,11 @@ export function AboutScreen() {
                                 <img src="/dangershark.png" alt="dangershark" className="author-avatar" />
                                 <span>dangershark</span>
                             </div>
+                            <span className="author-separator">&</span>
+                            <div className="author-item">
+                                <img src="/qyrex.png" alt="qyrex" className="author-avatar" />
+                                <span>qyrex</span>
+                            </div>
                         </div>
                     </div>
                 </div>
