@@ -19,7 +19,15 @@ export async function rateLimit(
     const now = Math.floor(Date.now() / 1000);
     const bucket = Math.floor(now / windowSec);
     const fullKey = `rl:${key}:${bucket}`;
-    const raw = await env.RATELIMIT.get(fullKey);
+
+    // Fail open on KV errors — site stays up, rate limit temporarily disables.
+    let raw: string | null = null;
+    try {
+        raw = await env.RATELIMIT.get(fullKey);
+    } catch (err) {
+        console.warn('rate_limit_kv_read_failed', err);
+        return { ok: true, remaining: limit, resetAt: (bucket + 1) * windowSec };
+    }
     const count = raw ? parseInt(raw, 10) || 0 : 0;
 
     if (count >= limit) {
@@ -28,9 +36,13 @@ export async function rateLimit(
 
     // KV is eventually consistent — under heavy concurrency a few extra requests
     // may slip through. That's acceptable for the abuse-prevention use case.
-    await env.RATELIMIT.put(fullKey, String(count + 1), {
-        expirationTtl: windowSec + 5,
-    });
+    try {
+        await env.RATELIMIT.put(fullKey, String(count + 1), {
+            expirationTtl: windowSec + 5,
+        });
+    } catch (err) {
+        console.warn('rate_limit_kv_write_failed', err);
+    }
 
     return { ok: true, remaining: limit - count - 1, resetAt: (bucket + 1) * windowSec };
 }
