@@ -114,7 +114,7 @@ export function LyricsModal() {
         if (!scroller) return;
         const node = scroller.querySelector<HTMLDivElement>(`.lyrics-line[data-index="${activeIdx}"]`);
         if (node) {
-            const target = node.offsetTop - scroller.clientHeight * 0.35 + node.clientHeight / 2;
+            const target = node.offsetTop - scroller.clientHeight * 0.42 + node.clientHeight / 2;
             scroller.scrollTo({ top: target, behavior: 'smooth' });
         }
     }, [activeIdx, visible]);
