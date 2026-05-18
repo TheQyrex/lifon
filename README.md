@@ -71,7 +71,7 @@ npm run deploy
 
 ```bash
 npx wrangler d1 execute cupsize-db --remote --command \
-  "UPDATE users SET is_admin = 1 WHERE username = 'videlsvet';"
+  "UPDATE users SET is_admin = 1 WHERE username = 'qyrex';"
 ```
 
 **Frontend** — статика, разворачивается куда угодно (Cloudflare Pages, Netlify,
