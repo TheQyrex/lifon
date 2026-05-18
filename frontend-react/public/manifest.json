@@ -1,0 +1,37 @@
+{
+  "name": "LifonMUSIC",
+  "short_name": "LifonMUSIC",
+  "description": "Полная дискография CUPSIZE в одном месте",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0118",
+  "theme_color": "#6B46C1",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "minlogo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["music", "entertainment"],
+  "screenshots": [
+    {
+      "src": "preview/screenshot1.png",
+      "sizes": "1170x2532",
+      "type": "image/png"
+    }
+  ]
+}

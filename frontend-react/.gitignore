@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.*
+!.env.example
+.vite
+.DS_Store
+
+# Большие бандленые ассеты: 400+ МБ. Заливаются на сервер через rsync отдельно.
+public/audio/
+public/lyrics/
+public/preview/

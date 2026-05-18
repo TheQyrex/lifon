@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LifonMUSIC</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="player.css">
+    <link rel="stylesheet" href="lyrics.css">
+    <link rel="stylesheet" href="notifications.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Sidebar Navigation -->
+        <nav id="sidebar" class="sidebar hidden">
+            <div class="sidebar-content">
+                <div class="sidebar-logo">
+                    <img id="sidebarLogo" src="Logo.png" alt="LifonMUSIC" class="logo-full">
+                    <button class="btn-toggle-sidebar" onclick="toggleSidebar()">
+                        <svg id="toggleIcon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path fill-rule="evenodd" d="M7.72 12.53a.75.75 0 0 1 0-1.06l7.5-7.5a.75.75 0 1 1 1.06 1.06L9.31 12l6.97 6.97a.75.75 0 1 1-1.06 1.06l-7.5-7.5Z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="sidebar-menu">
+                    <div class="sidebar-item active" data-screen="library" onclick="switchScreen('library')">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M5.566 4.657A4.505 4.505 0 0 1 6.75 4.5h10.5c.41 0 .806.055 1.183.157A3 3 0 0 0 15.75 3h-7.5a3 3 0 0 0-2.684 1.657ZM2.25 12a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3v-6ZM5.25 7.5c-.41 0-.806.055-1.184.157A3 3 0 0 1 6.75 6h10.5a3 3 0 0 1 2.683 1.657A4.505 4.505 0 0 0 18.75 7.5H5.25Z"/>
+                        </svg>
+                        <span>Библиотека</span>
+                    </div>
+                    <div class="sidebar-item" data-screen="favorites" onclick="switchScreen('favorites')">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="m11.645 20.91-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0 1 12 5.052 5.5 5.5 0 0 1 16.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z"/>
+                        </svg>
+                        <span>Избранное</span>
+                    </div>
+                    <div class="sidebar-item" data-screen="about" onclick="switchScreen('about')">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 0 1 .67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 1 1-.671-1.34l.041-.022ZM12 9a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clip-rule="evenodd"/>
+                        </svg>
+                        <span>О LifonMUSIC</span>
+                    </div>
+                </div>
+                <div class="sidebar-menu sidebar-menu-bottom">
+                    <div class="sidebar-item" data-screen="profile" onclick="switchScreen('profile')">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path fill-rule="evenodd" d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z" clip-rule="evenodd"/>
+                        </svg>
+                        <span>Профиль</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Disclaimer Screen -->
+        <div id="disclaimer" class="disclaimer">
+            <div class="disclaimer-content">
+                <h1>⚠️ Дисклеймер</h1>
+                <p>LifonMUSIC — это независимый фан-проект, не связанный с официальными представителями CUPSIZE.</p>
+                <p>Все используемые материалы (музыка, обложки) принадлежат группе CUPSIZE.</p>
+                <p>Приложение создано с любовью к творчеству группы и предназначено исключительно для фанатов.</p>
+                <button class="btn-primary" onclick="acceptDisclaimer()">Понятно, продолжить</button>
+            </div>
+        </div>
+
+        <!-- Welcome Screen -->
+        <div id="welcomeScreen" class="welcome-screen hidden">
+            <div class="welcome-content">
+                <img src="Logo.png" alt="LifonMUSIC" class="welcome-logo">
+                <p class="welcome-subtitle">Полная дискография CUPSIZE в одном месте</p>
+
+                <div class="welcome-features">
+                    <div class="feature-item">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 3v9.28c-.47-.17-.97-.28-1.5-.28C8.01 12 6 14.01 6 16.5S8.01 21 10.5 21c2.31 0 4.2-1.75 4.45-4H15V6h4V3h-7z"/>
+                        </svg>
+                        <h3>Синхронизированные тексты</h3>
+                        <p>Следите за текстами песен в реальном времени</p>
+                    </div>
+                    <div class="feature-item">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/>
+                        </svg>
+                        <h3>Вся дискография</h3>
+                        <p>106 треков из 10 альбомов</p>
+                    </div>
+                    <div class="feature-item">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                        </svg>
+                        <h3>Избранное</h3>
+                        <p>Сохраняйте любимые треки</p>
+                    </div>
+                </div>
+
+                <button class="btn-welcome" onclick="showAuthScreen()">Войти</button>
+
+                <p class="welcome-credits">by videlsvet & dangershark</p>
+            </div>
+        </div>
+
+        <!-- Auth Screen -->
+        <div id="authScreen" class="auth-screen hidden">
+            <div class="auth-content">
+                <img src="Logo.png" alt="LifonMUSIC" class="auth-logo">
+                <h1 id="authTitle">Войти</h1>
+                <p class="auth-subtitle">LifonMUSIC</p>
+
+                <div class="auth-form">
+                    <input type="text" id="username" placeholder="Имя пользователя" autocomplete="username">
+                    <input type="password" id="password" placeholder="Пароль" autocomplete="current-password">
+                    <p id="authError" class="auth-error hidden"></p>
+
+                    <button class="btn-primary" id="authButton" onclick="handleAuth()">Войти</button>
+
+                    <div class="auth-switch">
+                        <span id="authSwitchText">Нет аккаунта? </span>
+                        <span class="auth-link" onclick="toggleAuthMode()">Зарегистрироваться</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Maintenance Screen -->
+        <div id="maintenanceScreen" class="maintenance-screen hidden">
+            <div class="maintenance-content">
+                <img src="Logo.png" alt="LifonMUSIC" class="maintenance-logo">
+                <h1>Технические работы</h1>
+                <p id="maintenanceMessage">Сайт находится на технических работах</p>
+                <button class="btn-primary" type="button" onclick="showAdminLoginFromMaintenance()">Войти как админ</button>
+            </div>
+        </div>
+
+        <!-- Main App -->
+        <div id="mainApp" class="main-app hidden">
+            <div class="app-container">
+                <!-- Main Content -->
+                <div class="main-content">
+                    <!-- Library Screen -->
+                    <div id="libraryScreen" class="screen active">
+                        <div class="screen-header">
+                            <h1>Дискография</h1>
+                            <input type="text" id="searchInput" placeholder="Поиск альбомов..." oninput="filterAlbums()">
+                        </div>
+                        <div id="albumsGrid" class="albums-grid"></div>
+                    </div>
+
+                    <!-- Favorites Screen -->
+                    <div id="favoritesScreen" class="screen">
+                        <div class="screen-header">
+                            <h1>Избранное</h1>
+                        </div>
+                        <div id="favoritesList" class="tracks-list"></div>
+                    </div>
+
+                    <!-- About Screen -->
+                    <div id="aboutScreen" class="screen">
+                        <div class="about-content">
+                            <div class="screen-header">
+                                <h1>О LifonMUSIC</h1>
+                            </div>
+                            <div class="about-card">
+                                <p class="about-text">
+                                    LifonMUSIC — независимый проект и не имеет отношения к официальным представителям группы CUPSIZE.
+                                    Если вам нравится их творчество, поддержите артистов: купите мерч или сходите на концерт!
+                                </p>
+                                <div class="about-authors">
+                                    <p class="about-by">by</p>
+                                    <div class="authors-list">
+                                        <div class="author-item">
+                                            <img src="videlsvet.png" alt="videlsvet" class="author-avatar">
+                                            <span>videlsvet</span>
+                                        </div>
+                                        <span class="author-separator">&</span>
+                                        <div class="author-item">
+                                            <img src="dangershark.png" alt="dangershark" class="author-avatar">
+                                            <span>dangershark</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="about-card" style="margin-top: 20px;">
+                                <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 16px; color: #E8D5FF; text-align: center;">Спасибо за поддержку</h3>
+                                <div class="supporters-list" id="supportersList"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Profile Screen -->
+                    <div id="profileScreen" class="screen">
+                        <div class="profile-content">
+                            <div class="screen-header">
+                                <h1>Профиль</h1>
+                            </div>
+                            <div class="profile-info">
+                                <div class="profile-avatar">
+                                    <svg width="80" height="80" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                                    </svg>
+                                </div>
+                                <h2 id="profileUsername">Гость</h2>
+                                <p id="profileStats">Любимых треков: 0</p>
+                            </div>
+                            <button class="btn-logout" onclick="logout()">Выйти</button>
+                        </div>
+                    </div>
+
+                    <!-- Album Detail Screen -->
+                    <div id="albumScreen" class="screen">
+                        <div class="album-detail">
+                            <button class="btn-back" onclick="closeAlbum()">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                                </svg>
+                            </button>
+                            <div class="album-header">
+                                <img id="albumCover" class="album-cover" src="" alt="">
+                                <div class="album-info">
+                                    <h1 id="albumTitle"></h1>
+                                    <p id="albumYear"></p>
+                                    <button class="btn-play-all" onclick="playAlbum()">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M8 5v14l11-7z"/>
+                                        </svg>
+                                        Слушать альбом
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="albumTracks" class="tracks-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Player -->
+                <div id="player" class="player hidden">
+                    <!-- Progress Bar Background - Full Size -->
+                    <div class="player-progress-background">
+                        <span id="currentTime" class="player-timecode player-timecode-start">0:00</span>
+                        <span id="duration" class="player-timecode player-timecode-end">0:00</span>
+                        <input type="range" id="progressBar" min="0" max="100" value="0" oninput="seekTo(this.value)">
+                        <div class="player-progress-track"></div>
+                        <div class="player-progress-filled"></div>
+                        <div class="player-progress-thumb"></div>
+                    </div>
+
+                    <div class="player-container">
+                        <div class="player-left">
+                            <img id="playerCover" class="player-cover" src="" alt="">
+                            <div class="player-info">
+                                <div id="playerTitle" class="player-title">Название трека</div>
+                                <div id="playerArtist" class="player-artist">CUPSIZE</div>
+                            </div>
+                        </div>
+
+                        <div class="player-center">
+                            <div class="player-buttons">
+                                <button class="btn-shuffle" onclick="toggleShuffle()" id="shuffleBtn">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="16 3 21 3 21 8"/>
+                                        <line x1="4" y1="20" x2="21" y2="3"/>
+                                        <polyline points="16 21 21 21 21 16"/>
+                                        <line x1="15" y1="15" x2="21" y2="21"/>
+                                        <line x1="4" y1="4" x2="9" y2="9"/>
+                                    </svg>
+                                </button>
+                                <button class="btn-prev" onclick="prevTrack()">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M9.195 18.44c1.25.714 2.805-.189 2.805-1.629v-2.34l6.945 3.968c1.25.715 2.805-.188 2.805-1.628V8.69c0-1.44-1.555-2.343-2.805-1.628L12 11.029v-2.34c0-1.44-1.555-2.343-2.805-1.628l-7.108 4.061c-1.26.72-1.26 2.536 0 3.256l7.108 4.061Z"/>
+                                    </svg>
+                                </button>
+                                <button class="btn-play-pause" onclick="togglePlay()">
+                                    <svg id="playPauseIcon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                        <rect x="6" y="4" width="4" height="16" rx="1"/>
+                                        <rect x="14" y="4" width="4" height="16" rx="1"/>
+                                    </svg>
+                                </button>
+                                <button class="btn-next" onclick="nextTrack()">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M5.055 7.06C3.805 6.347 2.25 7.25 2.25 8.69v8.122c0 1.44 1.555 2.343 2.805 1.628L12 14.471v2.34c0 1.44 1.555 2.343 2.805 1.628l7.108-4.061c1.26-.72 1.26-2.536 0-3.256l-7.108-4.061C13.555 6.346 12 7.249 12 8.689v2.34L5.055 7.061Z"/>
+                                    </svg>
+                                </button>
+                                <button class="btn-repeat" onclick="toggleRepeat()" id="repeatBtn">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="17 1 21 5 17 9"/>
+                                        <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                                        <polyline points="7 23 3 19 7 15"/>
+                                        <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="player-right">
+                            <button class="btn-like" onclick="toggleLike()">
+                                <svg id="likeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"/>
+                                </svg>
+                            </button>
+                            <div class="volume-control">
+                                <button class="btn-volume" onclick="toggleMute()">
+                                    <svg id="volumeIcon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.905A9.76 9.76 0 0 0 1.5 12c0 .898.121 1.768.35 2.595.341 1.24 1.518 1.905 2.659 1.905h1.93l4.5 4.5c.945.945 2.561.276 2.561-1.06V4.06ZM18.584 5.106a.75.75 0 0 1 1.06 0c3.808 3.807 3.808 9.98 0 13.788a.75.75 0 0 1-1.06-1.06 8.25 8.25 0 0 0 0-11.668.75.75 0 0 1 0-1.06Z"/>
+                                        <path d="M15.932 7.757a.75.75 0 0 1 1.061 0 6 6 0 0 1 0 8.486.75.75 0 0 1-1.06-1.061 4.5 4.5 0 0 0 0-6.364.75.75 0 0 1 0-1.06Z"/>
+                                    </svg>
+                                </button>
+                                <div class="volume-slider-container">
+                                    <div>
+                                        <input type="range" id="volumeSlider" min="0" max="100" value="100" orient="vertical" oninput="changeVolume(this.value)">
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn-lyrics" onclick="toggleLyrics()">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 4v16"/>
+                                    <path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2"/>
+                                    <path d="M9 20h6"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lyrics Modal -->
+                <div id="lyricsModal" class="lyrics-modal hidden">
+                    <div class="lyrics-content">
+                        <div class="lyrics-left">
+                            <div class="lyrics-cover-container">
+                                <button class="btn-hide-lyrics-top" onclick="toggleLyricsVisibility()" title="Скрыть текст">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+                                    </svg>
+                                </button>
+                                <button class="btn-visualizer-top" onclick="toggleVisualizer()" title="Визуализация">
+                                    <svg id="visualizerIcon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 3v9.28c-.47-.17-.97-.28-1.5-.28C8.01 12 6 14.01 6 16.5S8.01 21 10.5 21c2.31 0 4.2-1.75 4.45-4H15V6h4V3h-7z"/>
+                                    </svg>
+                                </button>
+                                <img id="lyricsCover" class="lyrics-cover" src="" alt="">
+                                <div class="lyrics-cover-overlay">
+                                    <button onclick="prevTrack()">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                                        </svg>
+                                    </button>
+                                    <button class="btn-play-big" onclick="togglePlay()">
+                                        <svg id="lyricsPlayIcon" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M8 5v14l11-7z"/>
+                                        </svg>
+                                    </button>
+                                    <button onclick="nextTrack()">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="lyrics-track-info">
+                                <div id="lyricsTrackTitle" class="lyrics-track-title">Название трека</div>
+                                <div id="lyricsTrackArtist" class="lyrics-track-artist">CUPSIZE</div>
+
+                                <!-- Progress Bar with Timecodes -->
+                                <div class="lyrics-progress-container">
+                                    <span id="lyricsCurrentTime" class="lyrics-timecode lyrics-timecode-start">0:00</span>
+                                    <input type="range" id="lyricsProgressBar" class="lyrics-progress-slider" min="0" max="100" value="0" oninput="seekTo(this.value)">
+                                    <span id="lyricsDuration" class="lyrics-timecode lyrics-timecode-end">0:00</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lyrics-right">
+                            <button class="btn-close-lyrics" onclick="toggleLyrics()" title="Свернуть">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M7 10l5 5 5-5z"/>
+                                </svg>
+                            </button>
+                            <div id="lyricsText" class="lyrics-scroller"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <audio id="audioPlayer" crossorigin="anonymous"></audio>
+    <script src="config.js"></script>
+    <script src="lib/dom.js"></script>
+    <script src="lib/api.js"></script>
+    <script src="lib/render.js"></script>
+    <script src="data.js"></script>
+    <script src="lyrics-enhancements.js"></script>
+    <script src="notifications.js"></script>
+    <script src="avatar.js"></script>
+    <script src="admin-link.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

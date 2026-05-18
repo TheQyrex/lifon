@@ -1,0 +1,37 @@
+name = "cupsize-api"
+main = "src/index.ts"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+# Production
+[[d1_databases]]
+binding = "DB"
+database_name = "data"
+database_id = "bd5f3aa5-464c-4fe2-a9e0-883132d754ad"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "cupsize-media"
+
+[[kv_namespaces]]
+binding = "RATELIMIT"
+id = "23a29908727b4e35bc2c4996b4f34231"
+
+[[kv_namespaces]]
+binding = "NOTIFICATIONS"
+id = "850e11dcd90449afba4e558b2c1701ca"
+
+# Public origin where frontend is hosted (used for CORS).
+# For multiple origins, set ALLOWED_ORIGINS as a comma-separated list.
+[vars]
+# Прод-домен фронта + локалка для разработки
+ALLOWED_ORIGINS = "https://test.lifonmusic.lol,http://localhost:5173,http://127.0.0.1:5173"
+MEDIA_PUBLIC_BASE = "https://cupsize-api.lifonmusic.workers.dev/media"
+# Бандленые ассеты (preview/, audio/album*, lyrics/) физически лежат во фронте.
+# С этим бейсом API будет возвращать абсолютные URL — нужно для Android-приложения.
+ASSETS_BASE = "https://test.lifonmusic.lol"
+
+# Secrets (set via `wrangler secret put <NAME>`):
+#   JWT_SECRET      — random 32+ byte string used to sign auth tokens
+#   ADMIN_BOOTSTRAP — optional one-shot username promoted to admin on first login

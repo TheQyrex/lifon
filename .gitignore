@@ -1,0 +1,17 @@
+node_modules
+.DS_Store
+.vite
+dist
+*.local
+.env
+.env.*
+!.env.example
+
+# Backend wrangler artifacts
+backend/.wrangler/
+backend/dump.sql
+
+# Старый ванильный фронт — не пушим
+frontend/audio/
+frontend/lyrics/
+frontend/preview/

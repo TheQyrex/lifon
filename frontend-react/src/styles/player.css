@@ -1,0 +1,442 @@
+/* Player - Yandex Music Style */
+.player {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(13, 13, 16, 0.98);
+    backdrop-filter: blur(40px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 14px 20px;
+    padding-left: 240px;
+    z-index: 99;
+    transition: padding-left 0.3s ease, transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    display: block !important;
+    transform: translateY(100%);
+    pointer-events: none;
+}
+
+.player.hidden {
+    transform: translateY(100%);
+    pointer-events: none;
+}
+
+.player:not(.hidden) {
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+body.sidebar-collapsed .player {
+    padding-left: 80px;
+}
+
+/* Progress Bar Background - Yandex Style */
+.player-progress-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: transparent;
+    cursor: pointer;
+    z-index: 10;
+    padding-left: 240px;
+    transition: padding-left 0.3s ease;
+}
+
+body.sidebar-collapsed .player-progress-background {
+    padding-left: 80px;
+}
+
+.player-progress-track {
+    position: absolute;
+    top: 0;
+    left: 240px;
+    right: 0;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.15);
+    pointer-events: none;
+    transition: left 0.3s ease;
+}
+
+body.sidebar-collapsed .player-progress-track {
+    left: 80px;
+}
+
+.player-progress-filled {
+    position: absolute;
+    top: 0;
+    left: 240px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.4);
+    width: var(--progress-width, 0%);
+    transition: width 0.5s linear, background 0.3s ease, left 0.3s ease;
+    pointer-events: none;
+}
+
+body.sidebar-collapsed .player-progress-filled {
+    left: 80px;
+}
+
+.player-progress-background:hover .player-progress-filled {
+    background: #fff;
+}
+
+.player-progress-thumb {
+    position: absolute;
+    top: 50%;
+    left: var(--progress-width, 0%);
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border-radius: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    transition: transform 0.2s ease;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.player-progress-background:hover .player-progress-thumb,
+.player-progress-background:active .player-progress-thumb {
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.player-progress-background:hover .player-progress-track {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+#progressBar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    outline: none;
+    cursor: pointer;
+    margin: 0;
+    padding: 0;
+    z-index: 11;
+}
+
+#progressBar::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: transparent;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+#progressBar::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: transparent;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+.player-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    max-width: 2000px;
+    margin: 0 auto;
+}
+
+/* Left Section - Track Info */
+.player-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 0 0 400px;
+    min-width: 0;
+    padding-left: 20px;
+}
+
+body.sidebar-collapsed .player-left {
+    flex: 0 0 400px;
+}
+
+.player-cover {
+    width: 52px;
+    height: 52px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.player-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.player-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-artist {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.6);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Center Section - Controls */
+.player-center {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-width: 600px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    justify-content: center;
+    align-items: center;
+}
+
+.player-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+
+.player-buttons button {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    padding: 10px;
+    border-radius: 50%;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.player-buttons button svg {
+    width: 24px;
+    height: 24px;
+}
+
+.player-buttons button:hover {
+    color: #fff;
+}
+
+.player-buttons button.active {
+    color: #1ed760;
+}
+
+.btn-shuffle svg,
+.btn-repeat svg {
+    width: 20px;
+    height: 20px;
+}
+
+.btn-play-pause {
+    background: #fff !important;
+    color: #000 !important;
+    width: 40px;
+    height: 40px;
+    transition: all 0.15s ease !important;
+}
+
+.btn-play-pause svg {
+    width: 18px !important;
+    height: 18px !important;
+}
+
+.btn-play-pause:hover {
+    transform: scale(1.05) !important;
+    background: #fff !important;
+    color: #000 !important;
+}
+
+/* Time Display - Hidden */
+.player-time {
+    display: none;
+}
+
+/* Timecodes in progress bar */
+.player-timecode {
+    position: absolute;
+    top: 8px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+    font-variant-numeric: tabular-nums;
+    z-index: 12;
+    pointer-events: none;
+}
+
+.player-timecode-start {
+    left: 16px;
+}
+
+.player-timecode-end {
+    display: none;
+}
+
+/* Right Section - Actions */
+.player-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+}
+
+.player-right button {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: color 0.2s ease, background 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.player-right button svg {
+    width: 20px;
+    height: 20px;
+}
+
+.player-right button:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-like.liked {
+    color: #FF6B8A;
+}
+
+.btn-like.liked svg {
+    fill: #FF6B8A;
+    stroke: #FF6B8A;
+}
+
+/* Volume Control */
+.volume-control {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-left: 8px;
+}
+
+.btn-volume {
+    flex-shrink: 0;
+}
+
+.volume-slider-container {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding-bottom: 10px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.volume-slider-container::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 10px;
+}
+
+.volume-control:hover .volume-slider-container,
+.volume-slider-container:hover,
+.volume-slider-container.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.volume-slider-container > div {
+    background: rgba(26, 26, 31, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 12px 8px;
+    border-radius: 20px;
+}
+
+#volumeSlider {
+    -webkit-appearance: slider-vertical;
+    appearance: slider-vertical;
+    width: 12px;
+    height: 100px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    outline: none;
+    cursor: pointer;
+    writing-mode: bt-lr;
+}
+
+#volumeSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+#volumeSlider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+#volumeSlider:hover::-moz-range-thumb {
+    opacity: 1;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .player {
+        left: 0;
+        bottom: 60px;
+        padding: 8px 12px;
+    }
+
+    .player-container {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .player-left {
+        width: 100%;
+        flex: 1;
+    }
+
+    .player-center {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .player-right {
+        width: 100%;
+        justify-content: center;
+    }
+}
