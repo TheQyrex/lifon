@@ -38,7 +38,7 @@ export function AboutScreen() {
                             </div>
                             <span className="author-separator">&</span>
                             <div className="author-item">
-                                <img src="/qyrex.png" alt="qyrex" className="author-avatar" />
+                                <img src="https://i.imgur.com/2nfkuwH.jpeg" alt="qyrex" className="author-avatar" />
                                 <span>qyrex</span>
                             </div>
                         </div>
