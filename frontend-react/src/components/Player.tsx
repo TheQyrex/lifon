@@ -111,7 +111,7 @@ export function Player() {
                 <div className="player-right">
                     <button
                         className={`btn-like${liked ? ' liked' : ''}`}
-                        onClick={() => toggleLike(currentTrack.id)}
+                        onClick={() => currentTrack && toggleLike(currentTrack.id)}
                         type="button"
                         title={liked ? 'Убрать из избранного' : 'В избранное'}
                     >
