@@ -23,7 +23,7 @@ export function FavoritesScreen() {
         const out: FavTrack[] = [];
         for (const a of albums) {
             for (const t of a.tracks) {
-                if (liked.has(t.id)) out.push({ ...t, _cover: a.cover });
+                if (liked.has(t.id)) out.push({ ...t, _cover: t.cover_url ?? a.cover });
             }
         }
         return out;

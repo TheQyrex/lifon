@@ -33,7 +33,7 @@ export function AlbumScreen() {
         if (!album) return;
         const track = album.tracks.find((t) => t.id === trackId);
         if (!track) return;
-        playFromStore(track, album.tracks, album.cover ?? null);
+        playFromStore(track, album.tracks, track.cover_url ?? album.cover ?? null);
     }
 
     function playWholeAlbum() {

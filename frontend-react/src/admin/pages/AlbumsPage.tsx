@@ -11,6 +11,8 @@ interface AdminTrack {
     duration: string;
     audio_key: string | null;
     audio_url: string | null;
+    cover_key: string | null;
+    cover_url: string | null;
     lrc: string | null;
     sort_order: number;
 }
@@ -43,6 +45,7 @@ export function AlbumsPage() {
                 tracks: a.tracks.map((t) => ({
                     ...t,
                     audio_url: toAbsoluteAsset(t.audio_url),
+                    cover_url: toAbsoluteAsset(t.cover_url),
                 })),
             }));
             setAlbums(normalized);
@@ -289,6 +292,11 @@ function TracksEditor({ album, onChange, setFlash }: TracksEditorProps) {
                     <li key={t.id}>
                         <div className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
                             <span className="w-6 text-center text-white/40 text-sm shrink-0">{idx + 1}</span>
+                            {t.cover_url ? (
+                                <img src={t.cover_url} alt="" className="w-8 h-8 rounded-md object-cover shrink-0" />
+                            ) : (
+                                <div className="w-8 h-8 rounded-md bg-white/[0.05] flex items-center justify-center text-white/20 text-xs shrink-0">♪</div>
+                            )}
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-medium truncate">{t.title}</div>
                                 <div className="text-xs text-white/40">{t.artist} · {t.duration}</div>
@@ -342,10 +350,13 @@ function TrackForm({ album, track, onClose, onSaved, setFlash }: TrackFormProps)
     const [duration, setDuration] = useState(track?.duration ?? '');
     const [audioKey, setAudioKey] = useState<string | null | undefined>(track?.audio_key ?? undefined);
     const [audioUrl, setAudioUrl] = useState<string | null>(track?.audio_url ?? null);
+    const [coverKey, setCoverKey] = useState<string | null | undefined>(track?.cover_key ?? undefined);
+    const [coverUrl, setCoverUrl] = useState<string | null>(track?.cover_url ?? null);
     const [lrc, setLrc] = useState<string | null | undefined>(track?.lrc ?? undefined);
     const [lrcName, setLrcName] = useState<string | null>(track?.lrc ? 'текст в БД' : null);
     const [busy, setBusy] = useState(false);
     const [uploadingAudio, setUploadingAudio] = useState(false);
+    const [uploadingCover, setUploadingCover] = useState(false);
 
     // Если в БД нет LRC, но есть бандленый /lyrics/<id>.lrc — отображаем это
     useEffect(() => {
@@ -375,6 +386,22 @@ function TrackForm({ album, track, onClose, onSaved, setFlash }: TrackFormProps)
         }
     }
 
+    async function uploadTrackCover(file: File) {
+        setUploadingCover(true);
+        try {
+            const fd = new FormData();
+            fd.append('kind', 'cover');
+            fd.append('file', file);
+            const res = await api.upload<{ ok: true; key: string; url: string }>('/admin/uploads', fd);
+            setCoverKey(res.key);
+            setCoverUrl(toAbsoluteAsset(res.url));
+        } catch (err) {
+            setFlash({ kind: 'error', text: err instanceof ApiException ? err.message : 'Ошибка загрузки обложки' });
+        } finally {
+            setUploadingCover(false);
+        }
+    }
+
     async function uploadLrc(file: File) {
         try {
             setLrc(await file.text());
@@ -398,6 +425,7 @@ function TrackForm({ album, track, onClose, onSaved, setFlash }: TrackFormProps)
                 artist: artist.trim() || 'CUPSIZE',
                 duration,
                 audio_key: audioKey,
+                cover_key: coverKey,
                 lrc,
                 sort_order: track?.sort_order ?? album.tracks.length,
             };
@@ -421,6 +449,25 @@ function TrackForm({ album, track, onClose, onSaved, setFlash }: TrackFormProps)
             </div>
 
             <div className="space-y-3">
+                <div className="flex items-center gap-4">
+                    <label className="cursor-pointer shrink-0 block">
+                        {coverUrl ? (
+                            <img src={coverUrl} alt="" className="w-16 h-16 rounded-lg object-cover border border-white/10" />
+                        ) : (
+                            <div className="w-16 h-16 rounded-lg bg-white/[0.05] border border-white/10 flex flex-col items-center justify-center text-white/30 text-xs gap-1">
+                                <span>🖼</span>
+                                <span>обложка</span>
+                            </div>
+                        )}
+                        <input type="file" accept="image/*" className="hidden"
+                            onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadTrackCover(f); e.target.value = ''; }}
+                        />
+                    </label>
+                    <div className="text-xs text-white/40 leading-relaxed">
+                        {uploadingCover ? 'Загружаем обложку…' : coverUrl ? 'Нажми чтобы заменить обложку трека' : 'Своя обложка для трека (необязательно).\nЕсли не задана — покажется обложка альбома.'}
+                    </div>
+                </div>
+
                 <div className="flex items-center gap-3">
                     <label className="inline-flex items-center gap-2 cursor-pointer text-sm shrink-0">
                         <span className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15">{audioUrl ? 'Заменить аудио' : 'Загрузить аудио'}</span>
@@ -452,7 +499,7 @@ function TrackForm({ album, track, onClose, onSaved, setFlash }: TrackFormProps)
 
             <div className="flex justify-end gap-2">
                 <Button variant="ghost" size="sm" onClick={onClose}>Отмена</Button>
-                <Button size="sm" onClick={save} disabled={busy || uploadingAudio}>
+                <Button size="sm" onClick={save} disabled={busy || uploadingAudio || uploadingCover}>
                     {busy ? 'Сохраняем…' : (track ? 'Сохранить' : 'Добавить')}
                 </Button>
             </div>

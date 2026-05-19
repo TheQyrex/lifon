@@ -16,7 +16,7 @@ albums.get('/', async (c) => {
     if (albumRows.results.length === 0) return c.json({ ok: true, albums: [] });
 
     const trackRows = await c.env.DB.prepare(
-        `SELECT id, album_id, title, artist, duration, audio_key, sort_order
+        `SELECT id, album_id, title, artist, duration, audio_key, cover_key, sort_order
          FROM tracks
          ORDER BY album_id ASC, sort_order ASC, id ASC`,
     ).all<{
@@ -26,6 +26,7 @@ albums.get('/', async (c) => {
         artist: string;
         duration: string;
         audio_key: string | null;
+        cover_key: string | null;
         sort_order: number;
     }>();
 
@@ -50,6 +51,8 @@ albums.get('/', async (c) => {
             duration: t.duration,
             audio: publicUrl(c.env, t.audio_key),
             audio_url: publicUrl(c.env, t.audio_key),
+            cover_key: t.cover_key,
+            cover_url: publicUrl(c.env, t.cover_key),
             album_id: t.album_id,
             albumId: t.album_id,
             sort_order: t.sort_order,

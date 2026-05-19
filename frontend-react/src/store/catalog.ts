@@ -55,6 +55,7 @@ function normalizeAlbum(a: Album): Album {
             ...t,
             album_id: t.album_id ?? a.id,
             audio_url: toAbsoluteAsset(t.audio_url ?? null),
+            cover_url: toAbsoluteAsset(t.cover_url ?? null),
         })),
     };
 }

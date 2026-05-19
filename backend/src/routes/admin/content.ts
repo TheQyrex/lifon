@@ -18,7 +18,7 @@ content.get('/albums', async (c) => {
     ).all<{ id: number; title: string; year: string; cover_key: string | null; sort_order: number }>();
 
     const trackRows = await c.env.DB.prepare(
-        `SELECT id, album_id, title, artist, duration, audio_key, lrc, sort_order
+        `SELECT id, album_id, title, artist, duration, audio_key, cover_key, lrc, sort_order
          FROM tracks
          ORDER BY album_id ASC, sort_order ASC, id ASC`,
     ).all<{
@@ -28,6 +28,7 @@ content.get('/albums', async (c) => {
         artist: string;
         duration: string;
         audio_key: string | null;
+        cover_key: string | null;
         lrc: string | null;
         sort_order: number;
     }>();
@@ -59,6 +60,8 @@ content.get('/albums', async (c) => {
                 audio_key: t.audio_key,
                 audio_url: publicUrl(c.env, t.audio_key),
                 audio: publicUrl(c.env, t.audio_key),
+                cover_key: t.cover_key,
+                cover_url: publicUrl(c.env, t.cover_key),
                 lrc: t.lrc,
                 sort_order: t.sort_order,
             })),
@@ -198,6 +201,7 @@ content.post('/tracks', async (c) => {
     let artist: string;
     let duration: string;
     let audioKey: string | null | undefined;
+    let coverKey: string | null | undefined;
     let lrc: string | null | undefined;
     let sortOrder: number | undefined;
     try {
@@ -207,6 +211,7 @@ content.post('/tracks', async (c) => {
             artist?: unknown;
             duration?: unknown;
             audio_key?: unknown;
+            cover_key?: unknown;
             lrc?: unknown;
             sort_order?: unknown;
             id?: unknown;
@@ -222,6 +227,7 @@ content.post('/tracks', async (c) => {
         artist = (validateOptionalString('artist', body.artist, 200)) ?? 'CUPSIZE';
         duration = validateNonEmptyString('duration', body.duration, 16);
         audioKey = validateOptionalString('audio_key', body.audio_key, 300);
+        coverKey = validateOptionalString('cover_key', body.cover_key, 300);
         lrc = validateOptionalString('lrc', body.lrc, 50_000);
         sortOrder = Number.isFinite(Number(body.sort_order)) ? Number(body.sort_order) : 0;
     } catch (err) {
@@ -234,13 +240,13 @@ content.post('/tracks', async (c) => {
 
     const row = requestedId
         ? await c.env.DB.prepare(
-            `INSERT INTO tracks (id, album_id, title, artist, duration, audio_key, lrc, sort_order)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-        ).bind(requestedId, albumId, title, artist, duration, audioKey, lrc, sortOrder).first<{ id: number }>()
+            `INSERT INTO tracks (id, album_id, title, artist, duration, audio_key, cover_key, lrc, sort_order)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+        ).bind(requestedId, albumId, title, artist, duration, audioKey, coverKey, lrc, sortOrder).first<{ id: number }>()
         : await c.env.DB.prepare(
-            `INSERT INTO tracks (album_id, title, artist, duration, audio_key, lrc, sort_order)
-             VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-        ).bind(albumId, title, artist, duration, audioKey, lrc, sortOrder).first<{ id: number }>();
+            `INSERT INTO tracks (album_id, title, artist, duration, audio_key, cover_key, lrc, sort_order)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+        ).bind(albumId, title, artist, duration, audioKey, coverKey, lrc, sortOrder).first<{ id: number }>();
 
     return c.json({ ok: true, id: row?.id });
 });
@@ -253,6 +259,7 @@ content.put('/tracks/:id', async (c) => {
     let artist: string;
     let duration: string;
     let audioKey: string | null | undefined;
+    let coverKey: string | null | undefined;
     let lrc: string | null | undefined;
     let sortOrder: number | undefined;
     try {
@@ -261,6 +268,7 @@ content.put('/tracks/:id', async (c) => {
             artist?: unknown;
             duration?: unknown;
             audio_key?: unknown;
+            cover_key?: unknown;
             lrc?: unknown;
             sort_order?: unknown;
         }>();
@@ -268,29 +276,32 @@ content.put('/tracks/:id', async (c) => {
         artist = (validateOptionalString('artist', body.artist, 200)) ?? 'CUPSIZE';
         duration = validateNonEmptyString('duration', body.duration, 16);
         audioKey = body.audio_key === undefined ? undefined : validateOptionalString('audio_key', body.audio_key, 300);
+        coverKey = body.cover_key === undefined ? undefined : validateOptionalString('cover_key', body.cover_key, 300);
         lrc = body.lrc === undefined ? undefined : validateOptionalString('lrc', body.lrc, 50_000);
         sortOrder = body.sort_order === undefined ? undefined : Number(body.sort_order);
     } catch (err) {
         return validationErrorResponse(c, err);
     }
 
-    const prev = await c.env.DB.prepare('SELECT audio_key, lrc, sort_order FROM tracks WHERE id = ?')
-        .bind(id).first<{ audio_key: string | null; lrc: string | null; sort_order: number }>();
+    const prev = await c.env.DB.prepare('SELECT audio_key, cover_key, lrc, sort_order FROM tracks WHERE id = ?')
+        .bind(id).first<{ audio_key: string | null; cover_key: string | null; lrc: string | null; sort_order: number }>();
     if (!prev) return c.json({ ok: false, error: 'not_found' }, 404);
 
     const nextAudioKey = audioKey === undefined ? prev.audio_key : audioKey;
+    const nextCoverKey = coverKey === undefined ? prev.cover_key : coverKey;
     const nextLrc = lrc === undefined ? prev.lrc : lrc;
     const nextSortOrder = Number.isFinite(sortOrder) ? Number(sortOrder) : prev.sort_order;
 
     await c.env.DB.prepare(
         `UPDATE tracks
-         SET title = ?, artist = ?, duration = ?, audio_key = ?, lrc = ?, sort_order = ?
+         SET title = ?, artist = ?, duration = ?, audio_key = ?, cover_key = ?, lrc = ?, sort_order = ?
          WHERE id = ?`,
-    ).bind(title, artist, duration, nextAudioKey, nextLrc, nextSortOrder, id).run();
+    ).bind(title, artist, duration, nextAudioKey, nextCoverKey, nextLrc, nextSortOrder, id).run();
 
-    if (prev.audio_key && prev.audio_key !== nextAudioKey) {
-        c.executionCtx.waitUntil(deleteFromR2(c.env, prev.audio_key));
-    }
+    c.executionCtx.waitUntil((async () => {
+        if (prev.audio_key && prev.audio_key !== nextAudioKey) await deleteFromR2(c.env, prev.audio_key);
+        if (prev.cover_key && prev.cover_key !== nextCoverKey) await deleteFromR2(c.env, prev.cover_key);
+    })());
 
     return c.json({ ok: true });
 });
@@ -299,12 +310,15 @@ content.delete('/tracks/:id', async (c) => {
     const id = Number(c.req.param('id'));
     if (!Number.isInteger(id) || id <= 0) return c.json({ ok: false, error: 'bad_id' }, 400);
 
-    const prev = await c.env.DB.prepare('SELECT audio_key FROM tracks WHERE id = ?')
-        .bind(id).first<{ audio_key: string | null }>();
+    const prev = await c.env.DB.prepare('SELECT audio_key, cover_key FROM tracks WHERE id = ?')
+        .bind(id).first<{ audio_key: string | null; cover_key: string | null }>();
 
     await c.env.DB.prepare('DELETE FROM tracks WHERE id = ?').bind(id).run();
 
-    if (prev?.audio_key) c.executionCtx.waitUntil(deleteFromR2(c.env, prev.audio_key));
+    c.executionCtx.waitUntil((async () => {
+        if (prev?.audio_key) await deleteFromR2(c.env, prev.audio_key);
+        if (prev?.cover_key) await deleteFromR2(c.env, prev.cover_key);
+    })());
     return c.json({ ok: true });
 });
 

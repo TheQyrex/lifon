@@ -12,6 +12,8 @@ export interface Track {
     duration: string;
     audio_key: string | null;
     audio_url: string | null;
+    cover_key?: string | null;
+    cover_url?: string | null;
     lrc?: string | null;
     sort_order: number;
 }
