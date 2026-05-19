@@ -56,6 +56,10 @@ export interface TelegramAuthData {
     hash: string;
 }
 
+export type TelegramAuthResponse =
+    | (AuthResponse & { pending: false })
+    | { ok: true; pending: true; suggested_username: string };
+
 export interface ApiError {
     ok: false;
     error: string;

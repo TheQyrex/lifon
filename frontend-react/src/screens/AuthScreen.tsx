@@ -6,13 +6,22 @@ import type { TelegramAuthData } from '@/types/api';
 const TG_BOT = 'lifonmusic_auth_bot';
 
 export function AuthScreen() {
-    const { login, loginWithTelegram } = useAuth();
+    const { login, loginWithTelegram, completeTelegramSetup, cancelTelegramSetup, pendingTg } = useAuth();
     const [showPassword, setShowPassword] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
     const tgRef = useRef<HTMLDivElement>(null);
+
+    // Когда приходит pending — предзаполняем ник из Telegram
+    useEffect(() => {
+        if (pendingTg) {
+            setUsername(pendingTg.suggestedUsername);
+            setPassword('');
+            setError(null);
+        }
+    }, [pendingTg]);
 
     useEffect(() => {
         (window as any).onTelegramAuth = async (tgUser: TelegramAuthData) => {
@@ -60,6 +69,68 @@ export function AuthScreen() {
         }
     }
 
+    async function submitSetup() {
+        setError(null);
+        if (!username) { setError('Введи имя пользователя'); return; }
+        if (!password) { setError('Введи пароль'); return; }
+        setBusy(true);
+        try {
+            await completeTelegramSetup(username, password);
+        } catch (err) {
+            if (err instanceof ApiException) setError(err.message);
+            else if (err instanceof Error) setError(err.message);
+            else setError('Неизвестная ошибка');
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    // Шаг 2: выбор ника и пароля
+    if (pendingTg) {
+        return (
+            <div className="auth-screen">
+                <div className="auth-content">
+                    <img src="/Logo.png" alt="LifonMUSIC" className="auth-logo" />
+                    <h1>Создай аккаунт</h1>
+                    <p className="auth-subtitle">LifonMUSIC</p>
+
+                    <div className="auth-form">
+                        <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, textAlign: 'center', marginBottom: 4 }}>
+                            Выбери ник и придумай пароль
+                        </p>
+                        <input
+                            type="text"
+                            placeholder="Имя пользователя"
+                            autoComplete="username"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                        />
+                        <input
+                            type="password"
+                            placeholder="Пароль (мин. 12 символов, буква + цифра)"
+                            autoComplete="new-password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') submitSetup(); }}
+                        />
+                        {error && <p className="auth-error">{error}</p>}
+                        <button className="btn-primary" type="button" onClick={submitSetup} disabled={busy}>
+                            {busy ? '...' : 'Создать аккаунт'}
+                        </button>
+                        <span
+                            className="auth-link"
+                            style={{ textAlign: 'center', fontSize: 13 }}
+                            onClick={() => { cancelTelegramSetup(); setError(null); }}
+                        >
+                            ← Назад
+                        </span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Шаг 1: кнопка Telegram (+ скрытый вход с паролем)
     return (
         <div className="auth-screen">
             <div className="auth-content">

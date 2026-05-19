@@ -17,55 +17,25 @@ interface UserRow {
 
 const auth = new Hono<AppEnv>();
 
+// Верификация подписи от Telegram Login Widget.
+// secret_key = SHA256(bot_token), hash = HMAC-SHA256(data_check_string, secret_key)
+async function verifyTelegramHash(rawData: Record<string, unknown>, hash: string, botToken: string): Promise<boolean> {
+    const dataCheckString = Object.keys(rawData)
+        .filter(k => rawData[k] !== undefined && rawData[k] !== null)
+        .sort()
+        .map(k => `${k}=${rawData[k]}`)
+        .join('\n');
+
+    const enc = new TextEncoder();
+    const secretKeyRaw = await crypto.subtle.digest('SHA-256', enc.encode(botToken));
+    const hmacKey = await crypto.subtle.importKey('raw', secretKeyRaw, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const sig = await crypto.subtle.sign('HMAC', hmacKey, enc.encode(dataCheckString));
+    const expectedHash = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+    return expectedHash === hash;
+}
+
 auth.post('/register', async (c) => {
     return c.json({ ok: false, error: 'registration_disabled', message: 'Регистрация доступна только через Telegram' }, 403);
-
-    const maintenance = await getMaintenanceState(c.env.DB);
-    if (maintenance.enabled) {
-        return c.json({ ok: false, error: 'maintenance', message: maintenance.message }, 503);
-    }
-
-    const limit = await rateLimit(c.env, `register:${clientIp(c.req.raw)}`, 5, 60 * 60);
-    if (!limit.ok) return c.json({ ok: false, error: 'rate_limited' }, 429);
-
-    let username: string;
-    let password: string;
-    try {
-        const body = await c.req.json<{ username?: unknown; password?: unknown }>();
-        username = validateUsername(body.username);
-        password = validateStrongPassword(body.password);
-    } catch (err) {
-        return validationErrorResponse(c, err);
-    }
-
-    const existing = await c.env.DB.prepare('SELECT id FROM users WHERE username = ?')
-        .bind(username)
-        .first<{ id: number }>();
-    if (existing) return c.json({ ok: false, error: 'username_taken' }, 409);
-
-    const { hash, salt, iterations } = await hashPassword(password);
-
-    // Bootstrap-админ работает только когда в системе ещё нет ни одного админа.
-    // Это закрывает дыру: если бы кто-то узнал ADMIN_BOOTSTRAP и админ был удалён,
-    // регистрация под этим именем дала бы права. Теперь — только первый.
-    let isBootstrapAdmin: 0 | 1 = 0;
-    if (c.env.ADMIN_BOOTSTRAP && username === c.env.ADMIN_BOOTSTRAP.toLowerCase()) {
-        const adminExists = await c.env.DB.prepare('SELECT 1 FROM users WHERE is_admin = 1 LIMIT 1').first<{ '1': number }>();
-        if (!adminExists) isBootstrapAdmin = 1;
-    }
-
-    const inserted = await c.env.DB.prepare(
-        'INSERT INTO users (username, password_hash, password_salt, password_iter, is_admin) VALUES (?, ?, ?, ?, ?) RETURNING id',
-    ).bind(username, hash, salt, iterations, isBootstrapAdmin).first<{ id: number }>();
-
-    if (!inserted) return c.json({ ok: false, error: 'server_error' }, 500);
-
-    const token = await signJwt(
-        { sub: inserted.id, name: username, adm: isBootstrapAdmin as 0 | 1 },
-        c.env.JWT_SECRET,
-    );
-
-    return c.json({ ok: true, token, user: { id: inserted.id, username, is_admin: !!isBootstrapAdmin } });
 });
 
 auth.post('/login', async (c) => {
@@ -135,6 +105,9 @@ auth.post('/login', async (c) => {
     });
 });
 
+// Шаг 1: верифицируем данные от Telegram.
+// Существующий пользователь → сразу JWT.
+// Новый пользователь → pending: true, предлагаем ник для следующего шага.
 auth.post('/telegram', async (c) => {
     const limit = await rateLimit(c.env, `tg:${clientIp(c.req.raw)}`, 20, 5 * 60);
     if (!limit.ok) return c.json({ ok: false, error: 'rate_limited' }, 429);
@@ -152,32 +125,18 @@ auth.post('/telegram', async (c) => {
     const { hash, ...rawData } = body;
     if (typeof hash !== 'string') return c.json({ ok: false, error: 'invalid_data' }, 400);
 
-    // auth_date должен быть не старше 24 часов
     const authDate = Number(rawData.auth_date);
     if (!authDate || Date.now() / 1000 - authDate > 86400) {
         return c.json({ ok: false, error: 'auth_expired', message: 'Данные устарели, попробуй ещё раз' }, 400);
     }
 
-    // data-check-string: все поля кроме hash, отсортированные по ключу, через \n
-    const dataCheckString = Object.keys(rawData)
-        .filter(k => rawData[k] !== undefined && rawData[k] !== null)
-        .sort()
-        .map(k => `${k}=${rawData[k]}`)
-        .join('\n');
-
-    // secret_key = SHA256(bot_token), затем HMAC-SHA256(dataCheckString, secret_key)
-    const enc = new TextEncoder();
-    const secretKeyRaw = await crypto.subtle.digest('SHA-256', enc.encode(botToken));
-    const hmacKey = await crypto.subtle.importKey('raw', secretKeyRaw, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-    const sig = await crypto.subtle.sign('HMAC', hmacKey, enc.encode(dataCheckString));
-    const expectedHash = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
-
-    if (expectedHash !== hash) return c.json({ ok: false, error: 'invalid_hash', message: 'Ошибка верификации Telegram' }, 401);
+    if (!(await verifyTelegramHash(rawData, hash, botToken))) {
+        return c.json({ ok: false, error: 'invalid_hash', message: 'Ошибка верификации Telegram' }, 401);
+    }
 
     const telegramId = Number(rawData.id);
     if (!telegramId || !Number.isFinite(telegramId)) return c.json({ ok: false, error: 'invalid_data' }, 400);
 
-    // Ищем существующего пользователя по telegram_id
     const existing = await c.env.DB.prepare(
         'SELECT id, username, is_admin FROM users WHERE telegram_id = ?',
     ).bind(telegramId).first<{ id: number; username: string; is_admin: number }>();
@@ -192,27 +151,80 @@ auth.post('/telegram', async (c) => {
             { sub: existing.id, name: existing.username, adm: existing.is_admin ? 1 : 0 },
             c.env.JWT_SECRET,
         );
-        return c.json({ ok: true, token, user: { id: existing.id, username: existing.username, is_admin: !!existing.is_admin } });
+        return c.json({ ok: true, pending: false, token, user: { id: existing.id, username: existing.username, is_admin: !!existing.is_admin } });
     }
 
-    // Новый пользователь — регистрация через Telegram
     const maintenance = await getMaintenanceState(c.env.DB);
     if (maintenance.enabled) {
         return c.json({ ok: false, error: 'maintenance', message: maintenance.message }, 503);
     }
 
-    // Генерируем username из Telegram-хендла или fallback tg_<id>
+    // Предлагаем ник на основе Telegram-хендла, но не создаём аккаунт
     const rawTgName = typeof rawData.username === 'string' ? rawData.username : '';
     const cleaned = rawTgName.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 24);
-    let username = cleaned.length >= 3 ? cleaned : `tg_${telegramId}`;
+    let suggestedUsername = cleaned.length >= 3 ? cleaned : `tg_${telegramId}`;
+
+    const taken = await c.env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(suggestedUsername).first();
+    if (taken) suggestedUsername = `tg_${telegramId}`;
+
+    return c.json({ ok: true, pending: true, suggested_username: suggestedUsername });
+});
+
+// Шаг 2: пользователь выбрал ник и пароль — создаём аккаунт.
+// Для безопасности повторно верифицируем Telegram-данные.
+auth.post('/telegram/complete', async (c) => {
+    const limit = await rateLimit(c.env, `tg_complete:${clientIp(c.req.raw)}`, 10, 15 * 60);
+    if (!limit.ok) return c.json({ ok: false, error: 'rate_limited' }, 429);
+
+    const botToken = c.env.TELEGRAM_BOT_TOKEN;
+    if (!botToken) return c.json({ ok: false, error: 'server_error' }, 500);
+
+    let tgData: Record<string, unknown>;
+    let username: string;
+    let password: string;
+    try {
+        const body = await c.req.json<{ tg_data?: unknown; username?: unknown; password?: unknown }>();
+        if (!body.tg_data || typeof body.tg_data !== 'object' || Array.isArray(body.tg_data)) {
+            return c.json({ ok: false, error: 'bad_request' }, 400);
+        }
+        tgData = body.tg_data as Record<string, unknown>;
+        username = validateUsername(body.username);
+        password = validateStrongPassword(body.password);
+    } catch (err) {
+        return validationErrorResponse(c, err);
+    }
+
+    const { hash, ...rawData } = tgData;
+    if (typeof hash !== 'string') return c.json({ ok: false, error: 'invalid_data' }, 400);
+
+    const authDate = Number(rawData.auth_date);
+    if (!authDate || Date.now() / 1000 - authDate > 86400) {
+        return c.json({ ok: false, error: 'auth_expired', message: 'Данные устарели, начни заново' }, 400);
+    }
+
+    if (!(await verifyTelegramHash(rawData, hash, botToken))) {
+        return c.json({ ok: false, error: 'invalid_hash', message: 'Ошибка верификации Telegram' }, 401);
+    }
+
+    const telegramId = Number(rawData.id);
+    if (!telegramId || !Number.isFinite(telegramId)) return c.json({ ok: false, error: 'invalid_data' }, 400);
+
+    const existingTg = await c.env.DB.prepare('SELECT id FROM users WHERE telegram_id = ?').bind(telegramId).first();
+    if (existingTg) return c.json({ ok: false, error: 'already_registered', message: 'Этот Telegram уже привязан к аккаунту' }, 409);
 
     const taken = await c.env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(username).first();
-    if (taken) username = `tg_${telegramId}`;
+    if (taken) return c.json({ ok: false, error: 'username_taken', message: 'Это имя уже занято' }, 409);
 
-    // Telegram-пользователи хранятся без пароля (password_iter=0 — признак Telegram-аккаунта)
+    const maintenance = await getMaintenanceState(c.env.DB);
+    if (maintenance.enabled) {
+        return c.json({ ok: false, error: 'maintenance', message: maintenance.message }, 503);
+    }
+
+    const { hash: pwHash, salt, iterations } = await hashPassword(password);
+
     const inserted = await c.env.DB.prepare(
         'INSERT INTO users (username, password_hash, password_salt, password_iter, telegram_id) VALUES (?, ?, ?, ?, ?) RETURNING id',
-    ).bind(username, '', '', 0, telegramId).first<{ id: number }>();
+    ).bind(username, pwHash, salt, iterations, telegramId).first<{ id: number }>();
 
     if (!inserted) return c.json({ ok: false, error: 'server_error' }, 500);
 
