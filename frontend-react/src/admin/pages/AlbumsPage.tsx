@@ -292,8 +292,8 @@ function TracksEditor({ album, onChange, setFlash }: TracksEditorProps) {
                     <li key={t.id}>
                         <div className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
                             <span className="w-6 text-center text-white/40 text-sm shrink-0">{idx + 1}</span>
-                            {t.cover_url ? (
-                                <img src={t.cover_url} alt="" className="w-8 h-8 rounded-md object-cover shrink-0" />
+                            {(t.cover_url ?? album.cover_url) ? (
+                                <img src={(t.cover_url ?? album.cover_url)!} alt="" className="w-8 h-8 rounded-md object-cover shrink-0" />
                             ) : (
                                 <div className="w-8 h-8 rounded-md bg-white/[0.05] flex items-center justify-center text-white/20 text-xs shrink-0">♪</div>
                             )}
@@ -477,13 +477,13 @@ function TrackForm({ album, track, onClose, onSaved, setFlash }: TrackFormProps)
                                         : 'Нажми чтобы задать обложку трека'}
                         </div>
                         {coverUrl && (
-                            <button
-                                type="button"
-                                className="text-xs text-red-400 hover:text-red-300 text-left w-fit"
+                            <Button
+                                variant="danger"
+                                size="sm"
                                 onClick={() => { setCoverKey(null); setCoverUrl(null); }}
                             >
-                                × Убрать обложку трека
-                            </button>
+                                Убрать обложку
+                            </Button>
                         )}
                     </div>
                 </div>
