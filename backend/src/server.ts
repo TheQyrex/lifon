@@ -64,16 +64,19 @@ const storage     = new FSStorage(MEDIA_DIR);
 setInterval(() => { ratelimitKv.prune(); notifKv.prune(); }, 10 * 60 * 1000).unref();
 
 // ── Bindings object (replaces Cloudflare env) ──────────────────────────────
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+
 const bindings = {
-    DB:            db,
-    MEDIA:         storage,
-    RATELIMIT:     ratelimitKv,
-    NOTIFICATIONS: notifKv,
+    DB:                db,
+    MEDIA:             storage,
+    RATELIMIT:         ratelimitKv,
+    NOTIFICATIONS:     notifKv,
     JWT_SECRET,
     ALLOWED_ORIGINS,
     MEDIA_PUBLIC_BASE,
     ASSETS_BASE,
     ADMIN_BOOTSTRAP,
+    TELEGRAM_BOT_TOKEN,
 };
 
 // Fake Workers ExecutionContext — waitUntil just runs the promise in background

@@ -289,6 +289,29 @@ body {
     text-decoration: underline;
 }
 
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: rgba(255, 255, 255, 0.25);
+    font-size: 12px;
+    margin: 4px 0;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.tg-btn-wrapper {
+    display: flex;
+    justify-content: center;
+    min-height: 44px;
+}
+
 /* Maintenance Screen */
 .maintenance-screen {
     position: fixed;

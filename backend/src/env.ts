@@ -9,6 +9,7 @@ export interface Env {
     MEDIA_PUBLIC_BASE: string;
     ASSETS_BASE?: string; // префикс для бандленых ассетов (preview/, audio/, lyrics/) — задаётся в проде
     ADMIN_BOOTSTRAP?: string;
+    TELEGRAM_BOT_TOKEN?: string;
 }
 
 export interface AuthedUser {

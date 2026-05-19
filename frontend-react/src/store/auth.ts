@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { api, getToken, setToken } from '@/lib/api';
-import type { AuthResponse, User } from '@/types/api';
+import type { AuthResponse, TelegramAuthData, User } from '@/types/api';
 
 interface AuthState {
     user: User | null;
@@ -8,6 +8,7 @@ interface AuthState {
     bootstrap: () => Promise<void>;
     login: (username: string, password: string) => Promise<void>;
     register: (username: string, password: string) => Promise<void>;
+    loginWithTelegram: (data: TelegramAuthData) => Promise<void>;
     logout: () => void;
 }
 
@@ -37,6 +38,12 @@ export const useAuth = create<AuthState>((set) => ({
 
     async register(username, password) {
         const res = await api.post<AuthResponse>('/auth/register', { username, password });
+        setToken(res.token);
+        set({ user: res.user });
+    },
+
+    async loginWithTelegram(data) {
+        const res = await api.post<AuthResponse>('/auth/telegram', data);
         setToken(res.token);
         set({ user: res.user });
     },
