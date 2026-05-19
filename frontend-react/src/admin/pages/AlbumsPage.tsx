@@ -450,21 +450,41 @@ function TrackForm({ album, track, onClose, onSaved, setFlash }: TrackFormProps)
 
             <div className="space-y-3">
                 <div className="flex items-center gap-4">
-                    <label className="cursor-pointer shrink-0 block">
-                        {coverUrl ? (
-                            <img src={coverUrl} alt="" className="w-16 h-16 rounded-lg object-cover border border-white/10" />
-                        ) : (
+                    <label className="cursor-pointer shrink-0 block relative group">
+                        <img
+                            src={coverUrl ?? album.cover_url ?? undefined}
+                            alt=""
+                            className="w-16 h-16 rounded-lg object-cover border border-white/10"
+                            style={{ display: (coverUrl ?? album.cover_url) ? 'block' : 'none' }}
+                        />
+                        {!(coverUrl ?? album.cover_url) && (
                             <div className="w-16 h-16 rounded-lg bg-white/[0.05] border border-white/10 flex flex-col items-center justify-center text-white/30 text-xs gap-1">
                                 <span>🖼</span>
-                                <span>обложка</span>
                             </div>
                         )}
                         <input type="file" accept="image/*" className="hidden"
                             onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadTrackCover(f); e.target.value = ''; }}
                         />
                     </label>
-                    <div className="text-xs text-white/40 leading-relaxed">
-                        {uploadingCover ? 'Загружаем обложку…' : coverUrl ? 'Нажми чтобы заменить обложку трека' : 'Своя обложка для трека (необязательно).\nЕсли не задана — покажется обложка альбома.'}
+                    <div className="flex flex-col gap-1.5">
+                        <div className="text-xs text-white/40 leading-relaxed">
+                            {uploadingCover
+                                ? 'Загружаем обложку…'
+                                : coverUrl
+                                    ? 'Своя обложка трека (нажми чтобы заменить)'
+                                    : album.cover_url
+                                        ? 'Обложка альбома (нажми на неё чтобы задать свою)'
+                                        : 'Нажми чтобы задать обложку трека'}
+                        </div>
+                        {coverUrl && (
+                            <button
+                                type="button"
+                                className="text-xs text-red-400 hover:text-red-300 text-left w-fit"
+                                onClick={() => { setCoverKey(null); setCoverUrl(null); }}
+                            >
+                                × Убрать обложку трека
+                            </button>
+                        )}
                     </div>
                 </div>
 

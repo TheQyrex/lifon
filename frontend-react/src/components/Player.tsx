@@ -15,13 +15,11 @@ export function Player() {
     const toggleLyrics = useLyrics((s) => s.toggle);
     const trackListeners = useLive((s) => currentTrack ? (s.tracks[currentTrack.id] ?? 0) : 0);
 
-    if (!currentTrack) return null;
-
     const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0;
     const volumePct = isMuted ? 0 : volume * 100;
 
     return (
-        <div id="player" className="player">
+        <div id="player" className={`player${currentTrack ? '' : ' hidden'}`}>
             <div className="player-progress-background">
                 <span className="player-timecode player-timecode-start">{formatTime(currentTime)}</span>
                 <span className="player-timecode player-timecode-end">{formatTime(duration)}</span>
@@ -43,9 +41,9 @@ export function Player() {
                 <div className="player-left">
                     {cover && <img id="playerCover" className="player-cover" src={cover} alt="" />}
                     <div className="player-info">
-                        <div className="player-title">{currentTrack.title}</div>
+                        <div className="player-title">{currentTrack?.title}</div>
                         <div className="player-artist">
-                            {currentTrack.artist}
+                            {currentTrack?.artist}
                             {trackListeners > 1 && (
                                 <span className="player-live-badge" title="Слушают сейчас">
                                     <span className="player-live-dot" />
