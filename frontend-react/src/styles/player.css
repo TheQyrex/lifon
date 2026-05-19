@@ -406,29 +406,99 @@ body.sidebar-collapsed .player-progress-filled {
 
 /* Mobile */
 @media (max-width: 768px) {
+    /* Плеер над нижним таббаром */
     .player {
-        left: 0;
         bottom: 60px;
-        padding: 8px 12px;
+        padding: 6px 12px 8px;
+        padding-left: 12px;
     }
 
+    /* Сбрасываем отступ sidebar у плеера */
+    body.sidebar-collapsed .player {
+        padding-left: 12px;
+    }
+
+    /* Прогресс-бар — без отступа сайдбара */
+    .player-progress-background {
+        padding-left: 0;
+    }
+
+    .player-progress-track {
+        left: 0;
+    }
+
+    .player-progress-filled {
+        left: 0;
+    }
+
+    body.sidebar-collapsed .player-progress-track,
+    body.sidebar-collapsed .player-progress-filled {
+        left: 0;
+    }
+
+    /* Горизонтальный компактный контейнер */
     .player-container {
-        flex-direction: column;
-        gap: 12px;
-    }
-
-    .player-left {
-        width: 100%;
-        flex: 1;
-    }
-
-    .player-center {
-        width: 100%;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
         max-width: 100%;
     }
 
+    .player-left {
+        flex: 1;
+        min-width: 0;
+        padding-left: 0;
+        gap: 10px;
+    }
+
+    .player-cover {
+        width: 42px;
+        height: 42px;
+        border-radius: 6px;
+    }
+
+    .player-title {
+        font-size: 14px;
+    }
+
+    .player-artist {
+        font-size: 12px;
+    }
+
+    .player-center {
+        flex: none;
+        max-width: none;
+    }
+
     .player-right {
-        width: 100%;
-        justify-content: center;
+        flex: none;
+    }
+
+    /* Скрываем на мобиле */
+    .btn-shuffle,
+    .btn-repeat,
+    .volume-control,
+    .btn-lyrics {
+        display: none;
+    }
+
+    /* Компактные кнопки управления */
+    .player-buttons {
+        gap: 6px;
+    }
+
+    .btn-play-pause {
+        width: 40px;
+        height: 40px;
+    }
+
+    .btn-prev,
+    .btn-next {
+        padding: 6px;
+    }
+
+    .player-timecode {
+        display: none;
     }
 }

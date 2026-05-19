@@ -37,6 +37,7 @@ body {
     background: linear-gradient(180deg, #1A1A1F 0%, #111114 50%, #080809 100%);
     color: #fff;
     overflow: hidden;
+    overflow-x: hidden;
 }
 
 .app {
@@ -1325,81 +1326,169 @@ body.sidebar-collapsed .main-content {
 
 /* Адаптивность для мобильных */
 @media (max-width: 768px) {
+
+    /* ── Sidebar → нижний таббар ── */
     .sidebar {
         width: 100%;
-        height: auto;
-        bottom: auto;
+        height: 60px;
         top: auto;
-        position: fixed;
         bottom: 0;
         border-right: none;
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
         z-index: 101;
+    }
+
+    /* Сбрасываем collapsed — на мобиле он не нужен */
+    .sidebar.collapsed {
+        width: 100%;
     }
 
     .sidebar-content {
         flex-direction: row;
+        align-items: stretch;
         padding: 0;
+        height: 100%;
     }
 
-    .sidebar-logo {
+    .sidebar-logo,
+    .sidebar-live,
+    .btn-toggle-sidebar {
         display: none;
     }
 
-    .sidebar-menu {
-        flex-direction: row;
-        width: 100%;
-        padding: 12px;
+    /* Убираем box у обоих меню — их items становятся прямыми детьми sidebar-content */
+    .sidebar-menu,
+    .sidebar-menu-bottom {
+        display: contents;
+    }
+
+    .sidebar-content {
         justify-content: space-around;
     }
 
     .sidebar-item {
+        flex: 1;
         flex-direction: column;
-        gap: 4px;
-        padding: 8px 12px;
-        font-size: 12px;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 4px;
+        gap: 0;
+        border-radius: 0;
+        font-size: 0;
+    }
+
+    .sidebar-item span {
+        display: none;
     }
 
     .sidebar-item svg {
-        width: 20px;
-        height: 20px;
+        width: 24px;
+        height: 24px;
     }
 
+    .sidebar-item.active {
+        background: transparent;
+        color: #E8D5FF;
+    }
+
+    /* ── Основной контент ── */
     .main-content {
         margin-left: 0;
-        padding-bottom: 280px;
+        width: 100%;
+        padding: 16px 16px;
+        padding-bottom: 160px;
+        transition: none;
     }
 
-    .player {
-        left: 0;
-        bottom: 60px;
+    body.sidebar-collapsed .main-content {
+        margin-left: 0;
+        width: 100%;
     }
 
-    .lyrics-modal {
-        left: 0;
+    /* ── Альбомная сетка — 2 колонки ── */
+    .albums-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
     }
 
-    .lyrics-line {
-        font-size: 24px;
+    .album-card {
+        padding: 12px;
+        padding-bottom: 44px;
+        min-height: 0;
+        border-radius: 12px;
     }
 
-    .lyrics-line.active {
-        font-size: 28px;
+    .album-card img {
+        border-radius: 8px;
+        margin-bottom: 8px;
     }
 
+    .album-card h3 {
+        font-size: 13px;
+        margin-bottom: 2px;
+    }
+
+    .album-card p {
+        font-size: 12px;
+    }
+
+    /* ── Экран альбома ── */
     .album-header {
         flex-direction: column;
         align-items: center;
         text-align: center;
+        gap: 16px;
+        margin-bottom: 20px;
     }
 
     .album-cover {
-        width: 200px;
-        height: 200px;
+        width: 180px;
+        height: 180px;
     }
 
     .album-info h1 {
-        font-size: 32px;
+        font-size: 26px;
+    }
+
+    .album-info p {
+        font-size: 14px;
+        margin-bottom: 16px;
+    }
+
+    /* ── Заголовки экранов ── */
+    .screen-header h1 {
+        font-size: 26px;
+        margin-bottom: 12px;
+    }
+
+    .screen-header input {
+        max-width: 100%;
+    }
+
+    /* ── Список треков ── */
+    .track-item {
+        padding: 10px 12px;
+        gap: 12px;
+    }
+
+    /* ── Модалка текста ── */
+    .lyrics-modal {
+        left: 0;
+    }
+
+    /* ── О проекте — авторы в ряд ── */
+    .about-card {
+        padding: 24px 16px;
+    }
+
+    .authors-list {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .author-avatar {
+        width: 60px;
+        height: 60px;
     }
 }
 
