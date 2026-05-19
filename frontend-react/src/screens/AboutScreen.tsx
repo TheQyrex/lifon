@@ -41,11 +41,7 @@ export function AboutScreen() {
                                 <img src="https://i.imgur.com/2nfkuwH.jpeg" alt="qyrex" className="author-avatar" />
                                 <span>qyrex</span>
                             </div>
-                            <span className="author-separator">&</span>
-                            <div className="author-item">
-                                <img src="https://api.dicebear.com/9.x/bottts/png?seed=claude&size=128" alt="claude" className="author-avatar" />
-                                <span>claude</span>
-                            </div>
+
                         </div>
                     </div>
                 </div>
