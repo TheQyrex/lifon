@@ -18,6 +18,8 @@ interface UserRow {
 const auth = new Hono<AppEnv>();
 
 auth.post('/register', async (c) => {
+    return c.json({ ok: false, error: 'registration_disabled', message: 'Регистрация доступна только через Telegram' }, 403);
+
     const maintenance = await getMaintenanceState(c.env.DB);
     if (maintenance.enabled) {
         return c.json({ ok: false, error: 'maintenance', message: maintenance.message }, 503);
