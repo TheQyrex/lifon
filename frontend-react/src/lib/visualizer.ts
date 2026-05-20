@@ -81,9 +81,9 @@ export async function extractDominantColor(imageUrl: string): Promise<RGB> {
                     }
                 }
                 const l = (max + min) / 2;
-                // Фиксируем насыщенность и светлоту в «красивой» зоне
-                const s = 0.65;
-                const lClamped = Math.max(0.3, Math.min(l, 0.55));
+                // Фиксируем насыщенность и светлоту в «красивой» зоне: яркий, но не белый
+                const s = 0.75;
+                const lClamped = Math.max(0.45, Math.min(l, 0.65));
                 const q = lClamped < 0.5 ? lClamped * (1 + s) : lClamped + s - lClamped * s;
                 const p = 2 * lClamped - q;
                 const hue2rgb = (p: number, q: number, t: number) => {
