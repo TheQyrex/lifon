@@ -3,7 +3,7 @@ import type { Env } from '../env';
 const ALLOWED_KINDS = {
     avatar: { prefix: 'avatars', mime: /^image\/(png|jpeg|webp|gif)$/, maxBytes: 2 * 1024 * 1024 },
     cover:  { prefix: 'covers',  mime: /^image\/(png|jpeg|webp)$/,     maxBytes: 5 * 1024 * 1024 },
-    image:  { prefix: 'images',  mime: /^image\/(png|jpeg|webp|gif)$/, maxBytes: 5 * 1024 * 1024 },
+    image:  { prefix: 'images',  mime: /^image\/(png|jpeg|webp|gif)$/, maxBytes: 15 * 1024 * 1024 },
     audio:  { prefix: 'audio',   mime: /^audio\/(mpeg|opus|ogg|mp4|aac|wav)$/, maxBytes: 50 * 1024 * 1024 },
     video:  { prefix: 'videos',  mime: /^video\/(mp4|webm|quicktime)$/,        maxBytes: 50 * 1024 * 1024 },
     lrc:    { prefix: 'lyrics',  mime: /^(text\/plain|application\/octet-stream)$/, maxBytes: 200 * 1024 },

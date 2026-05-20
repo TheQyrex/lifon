@@ -108,7 +108,9 @@ function CreateBroadcast({ onCreated, onError }: { onCreated: () => void; onErro
     const [kind, setKind] = useState<Kind>('notification');
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
-    const [bg, setBg] = useState<string>('');
+    const [bgHex, setBgHex] = useState<string>('#6d28d9');
+    const [bgAlpha, setBgAlpha] = useState<number>(100);
+    const [bgGradient, setBgGradient] = useState<string>('');
     const [textColor, setTextColor] = useState<string>(DEFAULT_TEXT);
     const [titleSize, setTitleSize] = useState<number>(0);  // 0 = дефолт (CSS)
     const [bodySize, setBodySize] = useState<number>(0);
@@ -123,11 +125,23 @@ function CreateBroadcast({ onCreated, onError }: { onCreated: () => void; onErro
 
     function reset() {
         setTitle(''); setBody('');
-        setBg(''); setTextColor(DEFAULT_TEXT);
+        setBgHex('#6d28d9'); setBgAlpha(100); setBgGradient('');
+        setTextColor(DEFAULT_TEXT);
         setTitleSize(0); setBodySize(0);
         setImageKey(null); setImageUrl(null); setVideoUrl(null);
         setButtonRows([]);
     }
+
+    function deriveBg(): string {
+        if (!isBanner && bgGradient.trim()) return bgGradient.trim();
+        if (bgAlpha === 0) return '';
+        if (bgAlpha === 100) return bgHex;
+        const r = parseInt(bgHex.slice(1, 3), 16);
+        const g = parseInt(bgHex.slice(3, 5), 16);
+        const b = parseInt(bgHex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${(bgAlpha / 100).toFixed(2)})`;
+    }
+    const bg = deriveBg();
 
     async function uploadImage(file: File) {
         setUploading('image');
@@ -238,8 +252,37 @@ function CreateBroadcast({ onCreated, onError }: { onCreated: () => void; onErro
                     </Field>
 
                     <div className="grid grid-cols-2 gap-3">
-                        <Field label="Цвет фона" hint={isBanner ? 'CSS color' : 'CSS gradient или color'}>
-                            <Input value={bg} onChange={(e) => setBg(e.target.value)} placeholder={isBanner ? '#1a1a1f' : 'linear-gradient(...)'} />
+                        <Field label="Цвет фона">
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="color"
+                                        value={bgHex}
+                                        onChange={(e) => setBgHex(e.target.value)}
+                                        className="w-10 h-10 shrink-0 rounded-lg border border-white/10 bg-transparent cursor-pointer"
+                                        title="Цвет"
+                                    />
+                                    <input
+                                        type="range"
+                                        min={0} max={100} value={bgAlpha}
+                                        onChange={(e) => setBgAlpha(Number(e.target.value))}
+                                        className="flex-1 accent-violet-500"
+                                        title="Прозрачность"
+                                    />
+                                    <span className="text-xs text-white/40 w-8 text-right tabular-nums">{bgAlpha}%</span>
+                                    <div
+                                        className="w-8 h-8 shrink-0 rounded-md border border-white/10"
+                                        style={{ background: bg || 'transparent' }}
+                                    />
+                                </div>
+                                {!isBanner && (
+                                    <Input
+                                        value={bgGradient}
+                                        onChange={(e) => setBgGradient(e.target.value)}
+                                        placeholder="или CSS градиент: linear-gradient(…)"
+                                    />
+                                )}
+                            </div>
                         </Field>
                         <Field label="Цвет текста">
                             <input
