@@ -41,7 +41,10 @@ export function AlbumCard({ album }: { album: Album }) {
         <div className="album-card" onClick={go}>
             {album.cover ? <img src={album.cover} alt={album.title} /> : <div className="admin-album-cover-placeholder">♪</div>}
             <h3>{album.title}</h3>
-            <p>{album.year}</p>
+            <div className="album-card-meta">
+                <span className="album-card-pill">{album.year}</span>
+                <span className="album-card-pill">{album.tracks.length} тр.</span>
+            </div>
 
             {liveCount > 1 && (
                 <div className="album-card-live" title={`${liveCount} слушают сейчас`}>

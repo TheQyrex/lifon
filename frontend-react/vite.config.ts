@@ -4,7 +4,7 @@ import path from 'node:path';
 
 // В деве проксируем API через единый префикс /api. Без префикса пути коллидят
 // с React-роутами (например, /profile → React-страница vs API).
-const API_TARGET = 'https://cupsize-api.lifonmusic.workers.dev';
+const API_TARGET = 'http://localhost:3001';
 
 export default defineConfig({
     plugins: [react()],

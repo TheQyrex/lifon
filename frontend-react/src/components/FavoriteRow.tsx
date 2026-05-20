@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { useLikes } from '@/store/likes';
+import { extractDominantColor } from '@/lib/color';
 import type { Track } from '@/types/api';
 
 interface Props {
@@ -11,10 +13,24 @@ interface Props {
 export function FavoriteRow({ track, cover, isCurrent, onPlay }: Props) {
     const liked = useLikes((s) => s.liked.has(track.id));
     const toggle = useLikes((s) => s.toggle);
+    const [color, setColor] = useState<[number, number, number] | null>(null);
+
+    useEffect(() => {
+        if (cover) extractDominantColor(cover).then(setColor);
+    }, [cover]);
+
+    const bgStyle = color
+        ? {
+            backgroundColor: `rgba(${color[0]},${color[1]},${color[2]},${isCurrent ? 0.22 : 0.13})`,
+            borderRadius: '12px',
+            border: `1px solid rgba(${color[0]},${color[1]},${color[2]},0.25)`,
+        }
+        : { borderRadius: '12px' };
 
     return (
         <div
-            className={`track-item${isCurrent ? ' playing' : ''}`}
+            className={`track-item favorite-row${isCurrent ? ' playing' : ''}`}
+            style={bgStyle}
             onClick={() => onPlay?.(track.id)}
         >
             {cover ? (

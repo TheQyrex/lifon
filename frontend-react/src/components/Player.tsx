@@ -2,13 +2,11 @@ import { usePlayer } from '@/store/player';
 import { useLikes } from '@/store/likes';
 import { useLyrics } from '@/store/lyrics';
 import { useLive } from '@/store/live';
-import { formatTime } from '@/lib/format';
-
 export function Player() {
     const {
         currentTrack, cover, isPlaying, currentTime, duration,
         volume, isMuted, isShuffled, isRepeating,
-        togglePlay, next, prev, seek, setVolume, toggleMute, toggleShuffle, toggleRepeat,
+        togglePlay, next, prev, setVolume, toggleMute, toggleShuffle, toggleRepeat,
     } = usePlayer();
     const liked = useLikes((s) => currentTrack ? s.liked.has(currentTrack.id) : false);
     const toggleLike = useLikes((s) => s.toggle);
@@ -19,27 +17,24 @@ export function Player() {
     const volumePct = isMuted ? 0 : volume * 100;
 
     return (
-        <div id="player" className={`player${currentTrack ? '' : ' hidden'}`}>
-            <div className="player-progress-background">
-                <span className="player-timecode player-timecode-start">{formatTime(currentTime)}</span>
-                <span className="player-timecode player-timecode-end">{formatTime(duration)}</span>
-                <input
-                    type="range"
-                    id="progressBar"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={progressPct}
-                    onChange={(e) => seek((Number(e.target.value) / 100) * duration)}
-                />
-                <div className="player-progress-track" />
-                <div className="player-progress-filled" style={{ width: `${progressPct}%` }} />
-                <div className="player-progress-thumb" style={{ left: `${progressPct}%` }} />
-            </div>
+        <div
+            id="player"
+            className={`player${currentTrack ? '' : ' hidden'}`}
+        >
+            <div className="player-progress-fill" style={{ transform: `scaleX(${progressPct / 100})` }} />
 
             <div className="player-container">
-                <div className="player-left">
-                    {cover && <img id="playerCover" className="player-cover" src={cover} alt="" />}
+                <div key={currentTrack?.id} className="player-left">
+                    {cover && (
+                        <img
+                            id="playerCover"
+                            className="player-cover"
+                            src={cover}
+                            alt=""
+                            onClick={toggleLyrics}
+                            style={{ cursor: 'pointer' }}
+                        />
+                    )}
                     <div className="player-info">
                         <div className="player-title">{currentTrack?.title}</div>
                         <div className="player-artist">

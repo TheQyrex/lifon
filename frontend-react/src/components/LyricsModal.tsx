@@ -32,6 +32,13 @@ export function LyricsModal() {
         [lines, currentTime],
     );
 
+    const firstLineTime = lines && lines.length > 0 ? lines[0].time : null;
+    const timeUntilFirst = firstLineTime !== null ? firstLineTime - currentTime : null;
+    const isBeforeLyrics = activeIdx === -1 && lines !== null && lines.length > 0;
+    const showLoader = isBeforeLyrics && (timeUntilFirst === null || timeUntilFirst > 3);
+    const showCountdown = isBeforeLyrics && timeUntilFirst !== null && timeUntilFirst > 0 && timeUntilFirst <= 3;
+    const countdownNum = showCountdown ? Math.ceil(timeUntilFirst) : null;
+
     // Извлекаем доминантный цвет из обложки при её смене
     useEffect(() => {
         if (!cover) return;
@@ -39,6 +46,13 @@ export function LyricsModal() {
         extractDominantColor(cover).then((c) => { if (!cancelled) setDominant(c); });
         return () => { cancelled = true; };
     }, [cover]);
+
+    // Применяем доминантный цвет к CSS-переменной сразу — независимо от визуализатора
+    useEffect(() => {
+        const modal = modalRef.current;
+        if (!modal) return;
+        modal.style.setProperty('--wave-color', `${dominant.r}, ${dominant.g}, ${dominant.b}`);
+    }, [dominant]);
 
     // Пульсация фона под бит: читаем bass из анализатора и крутим CSS-переменные.
     // Работает только когда модалка видна, играет звук и визуализатор включен.
@@ -203,6 +217,22 @@ export function LyricsModal() {
                             <path d="M7 10l5 5 5-5z" />
                         </svg>
                     </button>
+
+                    {showLoader && (
+                        <div className="lyrics-loader">
+                            <div className="lyrics-loader-element" />
+                            <div className="lyrics-loader-element" />
+                            <div className="lyrics-loader-element" />
+                            <div className="lyrics-loader-element" />
+                        </div>
+                    )}
+
+                    {showCountdown && countdownNum !== null && (
+                        <div key={countdownNum} className="lyrics-countdown">
+                            {countdownNum}
+                        </div>
+                    )}
+
                     <div id="lyricsText" className="lyrics-scroller" ref={scrollerRef}>
                         {lines === null ? null : lines.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: '20px 40px' }}>
@@ -215,7 +245,7 @@ export function LyricsModal() {
                                     </a>
                                 </p>
                             </div>
-                        ) : (
+                        ) : isBeforeLyrics ? null : (
                             lines.map((l, i) => (
                                 <div
                                     key={i}

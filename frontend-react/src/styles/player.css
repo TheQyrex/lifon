@@ -10,10 +10,30 @@
     padding: 14px 20px;
     padding-left: 240px;
     z-index: 99;
+    overflow: visible;
     transition: padding-left 0.3s ease, transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     display: block !important;
     transform: translateY(100%);
     pointer-events: none;
+}
+
+/* Progress fill — smooth water-like animation */
+.player-progress-fill {
+    position: absolute;
+    top: 0;
+    left: 240px;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.07);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 1s linear, left 0.3s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+
+body.sidebar-collapsed .player-progress-fill {
+    left: 80px;
 }
 
 .player.hidden {
@@ -30,116 +50,6 @@ body.sidebar-collapsed .player {
     padding-left: 80px;
 }
 
-/* Progress Bar Background - Yandex Style */
-.player-progress-background {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: transparent;
-    cursor: pointer;
-    z-index: 10;
-    padding-left: 240px;
-    transition: padding-left 0.3s ease;
-}
-
-body.sidebar-collapsed .player-progress-background {
-    padding-left: 80px;
-}
-
-.player-progress-track {
-    position: absolute;
-    top: 0;
-    left: 240px;
-    right: 0;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.15);
-    pointer-events: none;
-    transition: left 0.3s ease;
-}
-
-body.sidebar-collapsed .player-progress-track {
-    left: 80px;
-}
-
-.player-progress-filled {
-    position: absolute;
-    top: 0;
-    left: 240px;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.4);
-    width: var(--progress-width, 0%);
-    transition: width 0.5s linear, background 0.3s ease, left 0.3s ease;
-    pointer-events: none;
-}
-
-body.sidebar-collapsed .player-progress-filled {
-    left: 80px;
-}
-
-.player-progress-background:hover .player-progress-filled {
-    background: #fff;
-}
-
-.player-progress-thumb {
-    position: absolute;
-    top: 50%;
-    left: var(--progress-width, 0%);
-    width: 12px;
-    height: 12px;
-    background: #fff;
-    border-radius: 50%;
-    transform: translate(-50%, -50%) scale(0);
-    transition: transform 0.2s ease;
-    pointer-events: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.player-progress-background:hover .player-progress-thumb,
-.player-progress-background:active .player-progress-thumb {
-    transform: translate(-50%, -50%) scale(1);
-}
-
-.player-progress-background:hover .player-progress-track {
-    background: rgba(255, 255, 255, 0.25);
-}
-
-#progressBar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    height: 4px;
-    -webkit-appearance: none;
-    appearance: none;
-    background: transparent;
-    outline: none;
-    cursor: pointer;
-    margin: 0;
-    padding: 0;
-    z-index: 11;
-}
-
-#progressBar::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 12px;
-    height: 12px;
-    background: transparent;
-    border-radius: 50%;
-    cursor: pointer;
-}
-
-#progressBar::-moz-range-thumb {
-    width: 12px;
-    height: 12px;
-    background: transparent;
-    border-radius: 50%;
-    cursor: pointer;
-    border: none;
-}
 
 .player-container {
     display: grid;
@@ -263,15 +173,14 @@ body.sidebar-collapsed .player-progress-filled {
     display: none;
 }
 
-/* Timecodes in progress bar */
-.player-timecode {
-    position: absolute;
-    top: 8px;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.5);
-    font-variant-numeric: tabular-nums;
-    z-index: 12;
-    pointer-events: none;
+/* Track switch animation */
+@keyframes playerTrackIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.player-left {
+    animation: playerTrackIn 0.3s ease;
 }
 
 .player-timecode-start {
@@ -418,21 +327,8 @@ body.sidebar-collapsed .player-progress-filled {
         padding-left: 12px;
     }
 
-    /* Прогресс-бар — без отступа сайдбара */
-    .player-progress-background {
-        padding-left: 0;
-    }
-
-    .player-progress-track {
-        left: 0;
-    }
-
-    .player-progress-filled {
-        left: 0;
-    }
-
-    body.sidebar-collapsed .player-progress-track,
-    body.sidebar-collapsed .player-progress-filled {
+    /* Прогресс-фон — без отступа сайдбара на мобиле */
+    .player-progress-fill {
         left: 0;
     }
 
@@ -476,11 +372,11 @@ body.sidebar-collapsed .player-progress-filled {
     }
 
     /* Скрываем на мобиле */
-    .btn-shuffle,
-    .btn-repeat,
-    .volume-control,
-    .btn-lyrics {
-        display: none;
+    .player-buttons .btn-shuffle,
+    .player-buttons .btn-repeat,
+    .player-right .btn-lyrics,
+    .volume-control {
+        display: none !important;
     }
 
     /* Компактные кнопки управления */
