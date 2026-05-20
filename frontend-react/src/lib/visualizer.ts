@@ -50,31 +50,54 @@ export async function extractDominantColor(imageUrl: string): Promise<RGB> {
         img.onload = () => {
             try {
                 const canvas = document.createElement('canvas');
+                canvas.width = 40;
+                canvas.height = 40;
                 const ctx = canvas.getContext('2d');
                 if (!ctx) return resolve(DEFAULT_COLOR);
-                canvas.width = img.width;
-                canvas.height = img.height;
-                ctx.drawImage(img, 0, 0);
-                const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, 40, 40);
+                const { data } = ctx.getImageData(0, 0, 40, 40);
                 let r = 0, g = 0, b = 0, count = 0;
-                for (let i = 0; i < data.length; i += 40) {
+                for (let i = 0; i < data.length; i += 4) {
+                    const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                    // Пропускаем слишком тёмные и слишком светлые пиксели — они размывают цвет в белый/чёрный
+                    if (brightness < 20 || brightness > 210) continue;
                     r += data[i]; g += data[i + 1]; b += data[i + 2]; count++;
                 }
-                r = Math.floor(r / count);
-                g = Math.floor(g / count);
-                b = Math.floor(b / count);
+                if (count < 10) return resolve(DEFAULT_COLOR);
+                r = Math.round(r / count);
+                g = Math.round(g / count);
+                b = Math.round(b / count);
 
-                // Подбустим насыщенность для слишком серых обложек
-                const max = Math.max(r, g, b);
-                const min = Math.min(r, g, b);
-                const sat = max === 0 ? 0 : (max - min) / max;
-                if (sat < 0.3) {
-                    const boost = 1.5;
-                    r = Math.min(255, Math.round(r * boost));
-                    g = Math.min(255, Math.round(g * boost));
-                    b = Math.min(255, Math.round(b * boost));
+                // Конвертируем в HSL и принудительно делаем цвет насыщенным
+                const nr = r / 255, ng = g / 255, nb = b / 255;
+                const max = Math.max(nr, ng, nb), min = Math.min(nr, ng, nb);
+                const d = max - min;
+                let h = 0;
+                if (d > 0) {
+                    switch (max) {
+                        case nr: h = ((ng - nb) / d + (ng < nb ? 6 : 0)) / 6; break;
+                        case ng: h = ((nb - nr) / d + 2) / 6; break;
+                        case nb: h = ((nr - ng) / d + 4) / 6; break;
+                    }
                 }
-                resolve({ r, g, b });
+                const l = (max + min) / 2;
+                // Фиксируем насыщенность и светлоту в «красивой» зоне
+                const s = 0.65;
+                const lClamped = Math.max(0.3, Math.min(l, 0.55));
+                const q = lClamped < 0.5 ? lClamped * (1 + s) : lClamped + s - lClamped * s;
+                const p = 2 * lClamped - q;
+                const hue2rgb = (p: number, q: number, t: number) => {
+                    if (t < 0) t += 1; if (t > 1) t -= 1;
+                    if (t < 1 / 6) return p + (q - p) * 6 * t;
+                    if (t < 1 / 2) return q;
+                    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+                    return p;
+                };
+                resolve({
+                    r: Math.round(hue2rgb(p, q, h + 1 / 3) * 255),
+                    g: Math.round(hue2rgb(p, q, h) * 255),
+                    b: Math.round(hue2rgb(p, q, h - 1 / 3) * 255),
+                });
             } catch {
                 resolve(DEFAULT_COLOR);
             }

@@ -144,7 +144,7 @@ content.put('/albums/:id', async (c) => {
             sort_order?: unknown;
         }>();
         title = validateNonEmptyString('title', body.title, 200);
-        year = validateNonEmptyString('year', body.year, 16);
+        year = validateOptionalString('year', body.year, 16) ?? '';
         coverKey = body.cover_key === undefined ? undefined : validateOptionalString('cover_key', body.cover_key, 300);
         sortOrder = body.sort_order === undefined ? undefined : Number(body.sort_order);
     } catch (err) {
