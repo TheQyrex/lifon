@@ -1774,6 +1774,11 @@ body.sidebar-collapsed .main-content {
         font-size: 24px;
     }
 
+    /* Дополнительный отступ снизу, чтобы плеер не перекрывал последний трек */
+    .tracks-list {
+        padding-bottom: 100px;
+    }
+
     /* ── Заголовки экранов ── */
     .screen-header h1 {
         font-size: 26px;

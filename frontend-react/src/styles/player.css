@@ -414,7 +414,7 @@ body.sidebar-collapsed .player {
 /* Mobile */
 @media (max-width: 768px) {
     .player-seekbar {
-        left: 0;
+        display: none !important;
     }
 
     /* Плеер над нижним таббаром + iOS safe area */

@@ -33,14 +33,16 @@ export function AlbumScreen() {
         }
     }, [album?.cover]);
 
-    // Swipe down to go back
+    // Swipe down to go back (only when scrolled to the very top of the list)
     const touchStartY = useRef<number>(0);
+    const scrollRef = useRef<HTMLDivElement>(null);
     function onTouchStart(e: React.TouchEvent) {
         touchStartY.current = e.touches[0].clientY;
     }
     function onTouchEnd(e: React.TouchEvent) {
         const dy = e.changedTouches[0].clientY - touchStartY.current;
-        if (dy > 80) handleBack();
+        const scrollTop = scrollRef.current?.scrollTop ?? 0;
+        if (dy > 80 && scrollTop < 10) handleBack();
     }
 
     async function shareAlbum() {
@@ -97,7 +99,7 @@ export function AlbumScreen() {
                     animation: 'fadeIn 0.6s ease both',
                 }} />
             )}
-            <div className="album-detail" style={{ position: 'relative', zIndex: 1 }}>
+            <div className="album-detail" ref={scrollRef} style={{ position: 'relative', zIndex: 1 }}>
                 <div className="album-header">
                     <div className="album-cover-row">
                         <button className="btn-back-inline" onClick={handleBack} type="button" aria-label="Назад">

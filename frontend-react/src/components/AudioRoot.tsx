@@ -12,6 +12,8 @@ export function AudioRoot() {
     const ref = useRef<HTMLAudioElement>(null);
     const listenRef = useRef<{ trackId: number; startMs: number } | null>(null);
     const currentTrackId = usePlayer(s => s.currentTrack?.id ?? null);
+    const currentTrack = usePlayer(s => s.currentTrack);
+    const cover = usePlayer(s => s.cover);
 
     // Записываем прослушивание когда трек меняется
     useEffect(() => {
@@ -42,6 +44,36 @@ export function AudioRoot() {
         return () => window.removeEventListener('beforeunload', handleUnload);
     }, []);
 
+    // Media Session API — lock screen controls
+    useEffect(() => {
+        if (!('mediaSession' in navigator) || !currentTrack) return;
+        const artwork = cover ? [{ src: cover, sizes: '512x512', type: 'image/jpeg' as const }] : [];
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: currentTrack.title,
+            artist: currentTrack.artist,
+            artwork,
+        });
+    }, [currentTrack, cover]);
+
+    useEffect(() => {
+        if (!('mediaSession' in navigator)) return;
+        const ms = navigator.mediaSession;
+        ms.setActionHandler('play',          () => { usePlayer.getState().togglePlay(); });
+        ms.setActionHandler('pause',         () => { usePlayer.getState().togglePlay(); });
+        ms.setActionHandler('previoustrack', () => { usePlayer.getState().prev(); });
+        ms.setActionHandler('nexttrack',     () => { usePlayer.getState().next(); });
+        ms.setActionHandler('seekto', (d) => {
+            if (d.seekTime !== undefined) usePlayer.getState().seek(d.seekTime);
+        });
+        return () => {
+            ms.setActionHandler('play',          null);
+            ms.setActionHandler('pause',         null);
+            ms.setActionHandler('previoustrack', null);
+            ms.setActionHandler('nexttrack',     null);
+            ms.setActionHandler('seekto',        null);
+        };
+    }, []);
+
     useEffect(() => {
         const a = ref.current;
         if (!a) return;
@@ -55,8 +87,12 @@ export function AudioRoot() {
             ensureAnalyser(a);
             resumeAudioContext();
             usePlayer.getState()._setIsPlaying(true);
+            if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
         };
-        const onPause   = () => usePlayer.getState()._setIsPlaying(false);
+        const onPause   = () => {
+            usePlayer.getState()._setIsPlaying(false);
+            if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+        };
         const onEnded   = () => usePlayer.getState()._onEnded();
 
         a.addEventListener('timeupdate', onTime);

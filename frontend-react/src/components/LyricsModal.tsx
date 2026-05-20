@@ -144,6 +144,15 @@ export function LyricsModal() {
             className={`lyrics-modal${visible ? '' : ' hidden'}${contentHidden ? ' lyrics-hidden' : ''}${visualizerOff ? ' visualizer-off' : ''}`}
         >
             <div className="lyrics-content">
+                {/* Mobile-only top bar */}
+                <div className="lyrics-mobile-topbar">
+                    <button className="btn-close-lyrics-mobile" onClick={toggle} type="button" aria-label="Свернуть">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M7 10l5 5 5-5z" />
+                        </svg>
+                    </button>
+                </div>
+
                 <div className="lyrics-left">
                     <div className="lyrics-cover-container">
                         <button
@@ -167,6 +176,7 @@ export function LyricsModal() {
                             </svg>
                         </button>
                         {cover && <img className="lyrics-cover" src={cover} alt="" />}
+                        {/* Desktop: controls on cover hover */}
                         <div className="lyrics-cover-overlay">
                             <button onClick={prev} type="button" aria-label="Предыдущий">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -195,6 +205,32 @@ export function LyricsModal() {
                     <div className="lyrics-track-info">
                         <div className="lyrics-track-title">{currentTrack.title}</div>
                         <div className="lyrics-track-artist">{currentTrack.artist}</div>
+
+                        {/* Mobile-only: always-visible controls */}
+                        <div className="lyrics-mobile-controls">
+                            <button onClick={prev} type="button" aria-label="Предыдущий">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                                </svg>
+                            </button>
+                            <button className="btn-play-mobile" onClick={togglePlay} type="button" aria-label="Играть/Пауза">
+                                {isPlaying ? (
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                        <rect x="6" y="4" width="4" height="16" rx="1" />
+                                        <rect x="14" y="4" width="4" height="16" rx="1" />
+                                    </svg>
+                                ) : (
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M8 5v14l11-7z" />
+                                    </svg>
+                                )}
+                            </button>
+                            <button onClick={next} type="button" aria-label="Следующий">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                                </svg>
+                            </button>
+                        </div>
 
                         <div className="lyrics-progress-container">
                             <span className="lyrics-timecode lyrics-timecode-start">{formatTime(currentTime)}</span>

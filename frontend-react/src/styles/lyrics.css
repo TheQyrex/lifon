@@ -543,47 +543,173 @@
     margin: 4px 0;
 }
 
+/* Mobile-only controls/topbar — hidden on desktop */
+.lyrics-mobile-topbar {
+    display: none;
+}
+.lyrics-mobile-controls {
+    display: none;
+}
+
 /* Mobile */
 @media (max-width: 768px) {
+    /* Full-height flex column */
     .lyrics-content {
         flex-direction: column;
+        height: 100%;
+        overflow: hidden;
     }
 
+    /* Top bar: chevron-down close */
+    .lyrics-mobile-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        padding-top: max(16px, env(safe-area-inset-top));
+        padding-bottom: 4px;
+    }
+
+    .btn-close-lyrics-mobile {
+        background: rgba(255, 255, 255, 0.08);
+        border: none;
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* Left: compact top section — don't grow */
     .lyrics-left {
+        flex-shrink: 0;
         width: 100%;
-        padding: 40px 20px 20px;
+        padding: 8px 24px 0;
+        align-items: center;
+        justify-content: flex-start;
     }
 
+    /* Compact cover */
     .lyrics-cover-container {
         width: 200px;
         height: 200px;
-        margin-bottom: 20px;
+        margin-bottom: 16px;
+        animation: none;
+    }
+
+    /* Hide cover overlay controls on mobile */
+    .lyrics-cover-overlay {
+        display: none;
+    }
+
+    /* Hide toggle buttons on mobile */
+    .btn-visualizer-top,
+    .btn-hide-lyrics-top {
+        display: none;
+    }
+
+    /* Hide desktop close button */
+    .btn-close-lyrics {
+        display: none;
+    }
+
+    /* Track info: centered */
+    .lyrics-track-info {
+        width: 100%;
+        max-width: 320px;
+        text-align: center;
     }
 
     .lyrics-track-title {
-        font-size: 24px;
+        font-size: 20px;
+        margin-bottom: 4px;
     }
 
     .lyrics-track-artist {
         font-size: 14px;
+        margin-bottom: 12px;
     }
 
+    /* Mobile controls: always-visible prev/play/next */
+    .lyrics-mobile-controls {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 28px;
+        margin-bottom: 16px;
+    }
+
+    .lyrics-mobile-controls button {
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.8);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px;
+        border-radius: 50%;
+        transition: color 0.15s ease, transform 0.15s ease;
+    }
+
+    .lyrics-mobile-controls button:hover {
+        color: #fff;
+        transform: scale(1.1);
+    }
+
+    .btn-play-mobile {
+        background: #fff !important;
+        color: #000 !important;
+        width: 56px;
+        height: 56px;
+        border-radius: 50% !important;
+        transition: transform 0.15s ease !important;
+    }
+
+    .btn-play-mobile:hover {
+        transform: scale(1.05) !important;
+    }
+
+    /* Seek bar: compact */
+    .lyrics-progress-container {
+        margin-top: 0;
+        margin-bottom: 4px;
+    }
+
+    /* Right: lyrics take all remaining height */
     .lyrics-right {
+        flex: 1;
+        min-height: 0;
         width: 100%;
         border-left: none;
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        border-top: none;
+        overflow: hidden;
     }
 
     .lyrics-scroller {
-        padding: 30vh 20px;
+        padding: 20vh 24px 80px;
     }
 
     .lyrics-line {
-        font-size: 32px;
-        margin-bottom: 24px;
+        font-size: 28px;
+        margin-bottom: 20px;
     }
 
     .lyrics-line.active {
-        font-size: 32px;
+        font-size: 30px;
+    }
+
+    .lyrics-line.past {
+        opacity: 0.4;
+        transform: translateY(-10px);
+    }
+
+    /* Visualizer blob centered on mobile */
+    .lyrics-modal::before,
+    .lyrics-modal::after {
+        left: 50%;
     }
 }
