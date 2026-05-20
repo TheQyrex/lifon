@@ -733,13 +733,10 @@ body.sidebar-collapsed .main-content {
     display: flex;
     gap: 8px;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.2s ease;
 }
 
-.album-card:hover .album-card-actions {
-    opacity: 1;
-    transition: opacity 0.4s ease 0.25s;
-}
+.album-card:hover .album-card-actions { opacity: 1; }
 
 .album-card-btn {
     width: 38px;
