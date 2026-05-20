@@ -63,6 +63,7 @@ const PROFILE_ITEM: NavItem = {
 export function Sidebar() {
     const { sidebarCollapsed, toggleSidebar } = useUi();
     const isAdmin = useAuth((s) => !!s.user?.is_admin);
+    const avatarUrl = useAuth((s) => s.user?.avatar_url ?? null);
     const liveTotal = useLive((s) => s.total);
     const bottomItems = isAdmin ? [ADMIN_ITEM, PROFILE_ITEM] : [PROFILE_ITEM];
 
@@ -92,7 +93,13 @@ export function Sidebar() {
                 </div>
 
                 <div className="sidebar-menu sidebar-menu-bottom">
-                    {bottomItems.map((item) => <SidebarLink key={item.to} item={item} />)}
+                    {bottomItems.map((item) =>
+                        item.to === '/profile' && avatarUrl
+                            ? <SidebarLink key={item.to} item={{ ...item, icon: (
+                                <img src={avatarUrl} alt="" className="sidebar-avatar" />
+                              ) }} />
+                            : <SidebarLink key={item.to} item={item} />
+                    )}
                     {liveTotal > 0 && !sidebarCollapsed && (
                         <div className="sidebar-live" title="Сейчас слушают">
                             <span className="sidebar-live-dot" />

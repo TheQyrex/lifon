@@ -2,6 +2,7 @@ export interface User {
     id: number;
     username: string;
     is_admin: boolean;
+    avatar_url?: string | null;
 }
 
 export interface Track {

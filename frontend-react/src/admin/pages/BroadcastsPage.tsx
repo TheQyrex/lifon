@@ -251,48 +251,46 @@ function CreateBroadcast({ onCreated, onError }: { onCreated: () => void; onErro
                         <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={isBanner ? 200 : 80} placeholder="Заголовок" />
                     </Field>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <Field label="Цвет фона">
-                            <div className="space-y-2">
-                                <div className="flex items-center gap-2">
+                    <Field label="Цвет фона и текста">
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2 flex-1">
                                     <input
                                         type="color"
                                         value={bgHex}
                                         onChange={(e) => setBgHex(e.target.value)}
                                         className="w-10 h-10 shrink-0 rounded-lg border border-white/10 bg-transparent cursor-pointer"
-                                        title="Цвет"
+                                        title="Цвет фона"
                                     />
                                     <input
                                         type="range"
                                         min={0} max={100} value={bgAlpha}
                                         onChange={(e) => setBgAlpha(Number(e.target.value))}
                                         className="flex-1 accent-violet-500"
-                                        title="Прозрачность"
+                                        title="Прозрачность фона"
                                     />
-                                    <span className="text-xs text-white/40 w-8 text-right tabular-nums">{bgAlpha}%</span>
-                                    <div
-                                        className="w-8 h-8 shrink-0 rounded-md border border-white/10"
-                                        style={{ background: bg || 'transparent' }}
+                                    <span className="text-xs text-white/40 w-8 text-right tabular-nums shrink-0">{bgAlpha}%</span>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <span className="text-xs text-white/40">текст</span>
+                                    <input
+                                        type="color"
+                                        value={textColor}
+                                        onChange={(e) => setTextColor(e.target.value)}
+                                        className="w-10 h-10 rounded-lg border border-white/10 bg-transparent cursor-pointer"
+                                        title="Цвет текста"
                                     />
                                 </div>
-                                {!isBanner && (
-                                    <Input
-                                        value={bgGradient}
-                                        onChange={(e) => setBgGradient(e.target.value)}
-                                        placeholder="или CSS градиент: linear-gradient(…)"
-                                    />
-                                )}
                             </div>
-                        </Field>
-                        <Field label="Цвет текста">
-                            <input
-                                type="color"
-                                value={textColor}
-                                onChange={(e) => setTextColor(e.target.value)}
-                                className="w-full h-10 rounded-xl bg-transparent border border-white/10 cursor-pointer"
-                            />
-                        </Field>
-                    </div>
+                            {!isBanner && (
+                                <Input
+                                    value={bgGradient}
+                                    onChange={(e) => setBgGradient(e.target.value)}
+                                    placeholder="или CSS градиент: linear-gradient(…)"
+                                />
+                            )}
+                        </div>
+                    </Field>
 
                     <div className="grid grid-cols-2 gap-3">
                         <Field label="Размер заголовка (px)" hint="0 = дефолт">
