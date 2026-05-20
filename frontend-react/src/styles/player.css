@@ -417,9 +417,9 @@ body.sidebar-collapsed .player {
         left: 0;
     }
 
-    /* Плеер над нижним таббаром */
+    /* Плеер над нижним таббаром + iOS safe area */
     .player {
-        bottom: 60px;
+        bottom: calc(60px + env(safe-area-inset-bottom));
         padding: 6px 12px 8px;
         padding-left: 12px;
     }
