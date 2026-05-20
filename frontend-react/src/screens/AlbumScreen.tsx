@@ -110,7 +110,7 @@ export function AlbumScreen() {
                     <div className="album-info">
                         <h1>{album.title}</h1>
                         <div className="album-meta">
-                            <span className="album-meta-pill">{album.year}</span>
+                            {album.year && <span className="album-meta-pill">{album.year}</span>}
                             <span className="album-meta-pill">{album.tracks.length} {album.tracks.length === 1 ? 'трек' : 'треков'}</span>
                         </div>
                         <div className="album-actions">

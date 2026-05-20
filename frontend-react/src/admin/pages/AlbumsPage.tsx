@@ -149,7 +149,7 @@ function AlbumList({ albums, selectedId, onSelect, onCreated, onError }: ListPro
                                 )}
                                 <div className="flex-1 min-w-0">
                                     <div className="font-medium truncate">{a.title}</div>
-                                    <div className="text-xs text-white/40">{a.year} · {a.tracks.length} тр.</div>
+                                    <div className="text-xs text-white/40">{a.year ? `${a.year} · ` : ''}{a.tracks.length} тр.</div>
                                 </div>
                             </button>
                         </li>
@@ -238,9 +238,16 @@ function AlbumEditor({ album, onChange, onDelete, setFlash }: EditorProps) {
                     </label>
                     <div className="space-y-3">
                         <Field label="Название"><Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} /></Field>
-                        <Field label="Год"><Input value={year} onChange={(e) => setYear(e.target.value)} maxLength={16} /></Field>
+                        <Field label="Год">
+                            <div className="flex gap-2 items-center">
+                                <Input value={year} onChange={(e) => setYear(e.target.value)} maxLength={16} placeholder="не указан" />
+                                {year && (
+                                    <Button variant="ghost" size="sm" onClick={() => setYear('')} title="Убрать год">×</Button>
+                                )}
+                            </div>
+                        </Field>
                         <div className="flex gap-2">
-                            <Button onClick={save} disabled={busy || !title.trim() || !year.trim()}>
+                            <Button onClick={save} disabled={busy || !title.trim()}>
                                 {busy ? 'Сохраняем…' : 'Сохранить'}
                             </Button>
                             <Button variant="danger" onClick={removeAlbum}>Удалить альбом</Button>
