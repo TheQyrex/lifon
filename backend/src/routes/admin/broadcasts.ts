@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../../env';
-import { publicUrl } from '../../lib/r2';
+import { publicUrl, deleteFromR2 } from '../../lib/r2';
 import {
     validateBroadcastKind,
     validateNonEmptyString,
@@ -97,7 +97,15 @@ broadcasts.delete('/:id', async (c) => {
     const id = Number(c.req.param('id'));
     if (!Number.isInteger(id) || id <= 0) return c.json({ ok: false, error: 'bad_id' }, 400);
 
+    const row = await c.env.DB.prepare('SELECT image_key FROM broadcasts WHERE id = ?')
+        .bind(id).first<{ image_key: string | null }>();
+
     await c.env.DB.prepare('UPDATE broadcasts SET is_active = 0 WHERE id = ?').bind(id).run();
+
+    if (row?.image_key) {
+        c.executionCtx.waitUntil(deleteFromR2(c.env, row.image_key));
+    }
+
     return c.json({ ok: true });
 });
 

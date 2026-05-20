@@ -72,6 +72,7 @@ export function AlbumsPage() {
                     selectedId={selectedId}
                     onSelect={setSelectedId}
                     onCreated={async (id) => { setSelectedId(id); await refresh(id); }}
+                    onReorder={() => refresh()}
                     onError={(t) => setFlash({ kind: 'error', text: t })}
                 />
 
@@ -99,10 +100,14 @@ interface ListProps {
     selectedId: number | null;
     onSelect: (id: number) => void;
     onCreated: (id: number) => void;
+    onReorder: () => void;
     onError: (text: string) => void;
 }
 
-function AlbumList({ albums, selectedId, onSelect, onCreated, onError }: ListProps) {
+function AlbumList({ albums, selectedId, onSelect, onCreated, onReorder, onError }: ListProps) {
+    const [dragId, setDragId] = useState<number | null>(null);
+    const [overIdx, setOverIdx] = useState<number | null>(null);
+
     async function create() {
         const title = prompt('Название нового альбома:');
         if (!title?.trim()) return;
@@ -120,6 +125,23 @@ function AlbumList({ albums, selectedId, onSelect, onCreated, onError }: ListPro
         }
     }
 
+    async function handleDrop(targetIdx: number) {
+        if (dragId === null || !albums) return;
+        const srcIdx = albums.findIndex((a) => a.id === dragId);
+        if (srcIdx < 0 || srcIdx === targetIdx) return;
+        const reordered = [...albums];
+        const [moved] = reordered.splice(srcIdx, 1);
+        reordered.splice(targetIdx, 0, moved);
+        try {
+            await api.patch('/admin/content/albums/reorder', {
+                items: reordered.map((a, i) => ({ id: a.id, sort_order: i })),
+            });
+            onReorder();
+        } catch (err) {
+            onError(err instanceof ApiException ? err.message : 'Ошибка сортировки');
+        }
+    }
+
     return (
         <Card
             title="Альбомы"
@@ -131,8 +153,16 @@ function AlbumList({ albums, selectedId, onSelect, onCreated, onError }: ListPro
                 <p className="text-white/40 text-sm">Альбомов нет.</p>
             ) : (
                 <ul className="flex flex-col gap-1.5">
-                    {albums.map((a) => (
-                        <li key={a.id}>
+                    {albums.map((a, idx) => (
+                        <li
+                            key={a.id}
+                            draggable
+                            onDragStart={() => setDragId(a.id)}
+                            onDragEnd={() => { setDragId(null); setOverIdx(null); }}
+                            onDragOver={(e) => { e.preventDefault(); setOverIdx(idx); }}
+                            onDrop={() => { void handleDrop(idx); setOverIdx(null); }}
+                            className={`rounded-xl transition-opacity ${dragId === a.id ? 'opacity-30' : ''} ${overIdx === idx && dragId !== a.id ? 'ring-2 ring-accent/60' : ''}`}
+                        >
                             <button
                                 type="button"
                                 onClick={() => onSelect(a.id)}
@@ -142,10 +172,11 @@ function AlbumList({ albums, selectedId, onSelect, onCreated, onError }: ListPro
                                         : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06]'
                                 }`}
                             >
+                                <span className="text-white/20 cursor-grab active:cursor-grabbing shrink-0 px-1 select-none" title="Перетащить">⠿</span>
                                 {a.cover ? (
-                                    <img src={a.cover} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                                    <img src={a.cover} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
                                 ) : (
-                                    <div className="w-12 h-12 rounded-lg bg-white/[0.05] flex items-center justify-center text-white/30 shrink-0">♪</div>
+                                    <div className="w-10 h-10 rounded-lg bg-white/[0.05] flex items-center justify-center text-white/30 shrink-0">♪</div>
                                 )}
                                 <div className="flex-1 min-w-0">
                                     <div className="font-medium truncate">{a.title}</div>
