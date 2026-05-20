@@ -60,11 +60,13 @@ body {
     justify-content: center;
     z-index: 1000;
     animation: fadeIn 0.5s ease;
+    overflow-y: auto;
 }
 
 .disclaimer-content {
     max-width: 500px;
-    padding: 40px;
+    width: 90%;
+    padding: 40px 24px;
     text-align: center;
     animation: slideUp 0.5s ease;
 }
@@ -95,6 +97,7 @@ body {
     justify-content: center;
     z-index: 1000;
     animation: fadeIn 0.5s ease;
+    overflow-y: auto;
 }
 
 .welcome-content {
@@ -1526,6 +1529,78 @@ body.sidebar-collapsed .main-content {
 
 /* Адаптивность для мобильных */
 @media (max-width: 768px) {
+
+    /* ── Disclaimer & Welcome — мобильная адаптация ── */
+    .disclaimer {
+        align-items: flex-start;
+    }
+
+    .disclaimer-content {
+        padding: 48px 24px 40px;
+    }
+
+    .disclaimer h1 {
+        font-size: 24px;
+    }
+
+    .disclaimer p {
+        font-size: 14px;
+    }
+
+    .welcome-screen {
+        align-items: flex-start;
+    }
+
+    .welcome-content {
+        padding: 48px 24px 40px;
+    }
+
+    .welcome-logo {
+        height: 80px;
+        margin-bottom: 16px;
+    }
+
+    .welcome-subtitle {
+        font-size: 15px;
+        margin-bottom: 32px;
+    }
+
+    .welcome-features {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-bottom: 32px;
+    }
+
+    .feature-item {
+        padding: 20px 16px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        text-align: left;
+        border-radius: 14px;
+    }
+
+    .feature-item svg {
+        flex-shrink: 0;
+        margin-bottom: 0;
+        width: 24px;
+        height: 24px;
+    }
+
+    .feature-item h3 {
+        font-size: 15px;
+        margin-bottom: 2px;
+    }
+
+    .feature-item p {
+        font-size: 13px;
+    }
+
+    .btn-welcome {
+        width: 100%;
+        padding: 16px 24px;
+        font-size: 16px;
+    }
 
     /* ── Sidebar → нижний таббар ── */
     .sidebar {
