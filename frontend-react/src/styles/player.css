@@ -17,6 +17,104 @@
     pointer-events: none;
 }
 
+/* ── Seek bar — appears on player hover ── */
+.player-seekbar {
+    position: absolute;
+    top: 0;
+    left: 240px;
+    right: 0;
+    height: 3px;
+    display: flex;
+    align-items: center;
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    overflow: visible;
+}
+
+.player:hover .player-seekbar {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.player-seekbar-track {
+    position: relative;
+    flex: 1;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.15);
+    cursor: pointer;
+    overflow: visible;
+}
+
+.player-seekbar-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: #E8D5FF;
+    border-radius: 2px;
+    pointer-events: none;
+}
+
+.player-seekbar-dot {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 11px;
+    height: 11px;
+    background: #fff;
+    border-radius: 50%;
+    pointer-events: none;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+.player-seekbar-time {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(20, 20, 24, 0.85);
+    padding: 3px 7px;
+    border-radius: 5px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.player-seekbar-duration {
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: rgba(255, 255, 255, 0.45);
+    padding: 0 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+/* Invisible range input — covers the track for interaction */
+.player-seekbar-input {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 24px;
+    transform: translateY(-50%);
+    opacity: 0;
+    cursor: pointer;
+    margin: 0;
+    padding: 0;
+    z-index: 2;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+body.sidebar-collapsed .player-seekbar {
+    left: 80px;
+}
+
 /* Progress fill — smooth water-like animation */
 .player-progress-fill {
     position: absolute;
@@ -315,6 +413,10 @@ body.sidebar-collapsed .player {
 
 /* Mobile */
 @media (max-width: 768px) {
+    .player-seekbar {
+        left: 0;
+    }
+
     /* Плеер над нижним таббаром */
     .player {
         bottom: 60px;

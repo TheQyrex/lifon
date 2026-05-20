@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { usePlayer } from '@/store/player';
 import { useLikes } from '@/store/likes';
 import { useLyrics } from '@/store/lyrics';
 import { useLive } from '@/store/live';
+import { formatTime } from '@/lib/format';
+
 export function Player() {
     const {
         currentTrack, cover, isPlaying, currentTime, duration,
         volume, isMuted, isShuffled, isRepeating,
-        togglePlay, next, prev, setVolume, toggleMute, toggleShuffle, toggleRepeat,
+        togglePlay, next, prev, seek, setVolume, toggleMute, toggleShuffle, toggleRepeat,
     } = usePlayer();
     const liked = useLikes((s) => currentTrack ? s.liked.has(currentTrack.id) : false);
     const toggleLike = useLikes((s) => s.toggle);
@@ -16,11 +19,46 @@ export function Player() {
     const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0;
     const volumePct = isMuted ? 0 : volume * 100;
 
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragPct, setDragPct] = useState(0);
+
+    const displayPct = isDragging ? dragPct : progressPct;
+    const displayTime = isDragging ? (dragPct / 100) * duration : currentTime;
+
+    function handleSeekChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const pct = Number(e.target.value);
+        setDragPct(pct);
+        seek((pct / 100) * duration);
+    }
+
     return (
         <div
             id="player"
             className={`player${currentTrack ? '' : ' hidden'}`}
         >
+            <div className="player-seekbar">
+                <div className="player-seekbar-track">
+                    <div className="player-seekbar-fill" style={{ width: `${displayPct}%` }} />
+                    <div className="player-seekbar-dot" style={{ left: `${displayPct}%` }}>
+                        <span className="player-seekbar-time">{formatTime(displayTime)}</span>
+                    </div>
+                    <input
+                        type="range"
+                        className="player-seekbar-input"
+                        min={0}
+                        max={100}
+                        step={0.01}
+                        value={displayPct}
+                        onChange={handleSeekChange}
+                        onMouseDown={() => { setIsDragging(true); setDragPct(progressPct); }}
+                        onMouseUp={() => setIsDragging(false)}
+                        onTouchStart={() => { setIsDragging(true); setDragPct(progressPct); }}
+                        onTouchEnd={() => setIsDragging(false)}
+                    />
+                </div>
+                <span className="player-seekbar-duration">{formatTime(duration)}</span>
+            </div>
+
             <div className="player-progress-fill" style={{ transform: `scaleX(${progressPct / 100})` }} />
 
             <div className="player-container">
