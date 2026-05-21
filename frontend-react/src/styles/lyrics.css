@@ -543,11 +543,9 @@
     margin: 4px 0;
 }
 
-/* Mobile-only controls/topbar — hidden on desktop */
-.lyrics-mobile-topbar {
-    display: none;
-}
-.lyrics-mobile-controls {
+/* Mobile-only elements — hidden on desktop */
+.lyrics-mobile-topbar,
+.lyrics-mobile-footer {
     display: none;
 }
 
@@ -560,22 +558,24 @@
         overflow: hidden;
     }
 
-    /* Top bar: chevron-down close */
+    /* ── Top bar: chevron + track title ── */
     .lyrics-mobile-topbar {
         display: flex;
         align-items: center;
-        justify-content: center;
+        gap: 12px;
         flex-shrink: 0;
-        padding-top: max(16px, env(safe-area-inset-top));
-        padding-bottom: 4px;
+        padding: max(14px, env(safe-area-inset-top)) 16px 10px;
+        position: relative;
+        z-index: 10;
     }
 
     .btn-close-lyrics-mobile {
         background: rgba(255, 255, 255, 0.08);
         border: none;
         border-radius: 50%;
-        width: 44px;
-        height: 44px;
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -583,69 +583,134 @@
         color: rgba(255, 255, 255, 0.7);
     }
 
-    /* Left: compact top section — don't grow */
+    .lyrics-mobile-trackinfo {
+        flex: 1;
+        min-width: 0;
+        text-align: center;
+        padding-right: 52px; /* compensate for button on left so title is truly centered */
+    }
+
+    .lyrics-mobile-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #fff;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .lyrics-mobile-artist {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.5);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* ── Left section: completely hidden on mobile ── */
     .lyrics-left {
-        flex-shrink: 0;
-        width: 100%;
-        padding: 8px 24px 0;
-        align-items: center;
-        justify-content: flex-start;
-    }
-
-    /* Compact cover */
-    .lyrics-cover-container {
-        width: 200px;
-        height: 200px;
-        margin-bottom: 16px;
-        animation: none;
-    }
-
-    /* Hide cover overlay controls on mobile */
-    .lyrics-cover-overlay {
         display: none;
     }
 
-    /* Hide toggle buttons on mobile */
-    .btn-visualizer-top,
-    .btn-hide-lyrics-top {
-        display: none;
-    }
-
-    /* Hide desktop close button */
+    /* ── Desktop close button: hidden on mobile ── */
     .btn-close-lyrics {
         display: none;
     }
 
-    /* Track info: centered */
-    .lyrics-track-info {
+    /* ── Lyrics right: takes all remaining space ── */
+    .lyrics-right {
+        flex: 1;
+        min-height: 0;
         width: 100%;
-        max-width: 320px;
-        text-align: center;
+        border-left: none;
+        border-top: none;
+        overflow: hidden;
+        position: relative;
     }
 
-    .lyrics-track-title {
-        font-size: 20px;
-        margin-bottom: 4px;
+    .lyrics-scroller {
+        padding: 12vh 28px 4vh;
+        mask-image: linear-gradient(to bottom,
+            transparent 0%,
+            black 8%,
+            black 85%,
+            transparent 100%);
+        -webkit-mask-image: linear-gradient(to bottom,
+            transparent 0%,
+            black 8%,
+            black 85%,
+            transparent 100%);
     }
 
-    .lyrics-track-artist {
-        font-size: 14px;
-        margin-bottom: 12px;
+    /* ── Lyrics lines: smooth, no layout-shift animation ── */
+    .lyrics-line {
+        font-size: 26px;
+        margin-bottom: 18px;
+        color: rgba(255, 255, 255, 0.28);
+        transition: color 0.25s ease, opacity 0.25s ease;
+        transform: none !important;
+        pointer-events: auto;
     }
 
-    /* Mobile controls: always-visible prev/play/next */
+    .lyrics-line:hover {
+        color: rgba(255, 255, 255, 0.45);
+    }
+
+    .lyrics-line.active {
+        color: #fff;
+        font-size: 26px;
+        font-weight: 800;
+        opacity: 1;
+        transform: none !important;
+    }
+
+    .lyrics-line.past {
+        color: rgba(255, 255, 255, 0.22);
+        opacity: 1;
+        transform: none !important;
+        pointer-events: none;
+    }
+
+    /* ── Bottom footer: seek bar + controls ── */
+    .lyrics-mobile-footer {
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        padding: 10px 20px calc(max(16px, env(safe-area-inset-bottom)) + 8px);
+        gap: 8px;
+        position: relative;
+        z-index: 10;
+    }
+
+    .lyrics-mobile-seek {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .lyrics-mobile-seek .lyrics-timecode {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.45);
+        min-width: 36px;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .lyrics-mobile-seek .lyrics-timecode:last-child {
+        text-align: right;
+    }
+
+    /* Mobile controls: prev / play / next */
     .lyrics-mobile-controls {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 28px;
-        margin-bottom: 16px;
+        gap: 32px;
     }
 
     .lyrics-mobile-controls button {
         background: none;
         border: none;
-        color: rgba(255, 255, 255, 0.8);
+        color: rgba(255, 255, 255, 0.75);
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -655,9 +720,8 @@
         transition: color 0.15s ease, transform 0.15s ease;
     }
 
-    .lyrics-mobile-controls button:hover {
-        color: #fff;
-        transform: scale(1.1);
+    .lyrics-mobile-controls button:active {
+        transform: scale(0.92);
     }
 
     .btn-play-mobile {
@@ -666,45 +730,6 @@
         width: 56px;
         height: 56px;
         border-radius: 50% !important;
-        transition: transform 0.15s ease !important;
-    }
-
-    .btn-play-mobile:hover {
-        transform: scale(1.05) !important;
-    }
-
-    /* Seek bar: compact */
-    .lyrics-progress-container {
-        margin-top: 0;
-        margin-bottom: 4px;
-    }
-
-    /* Right: lyrics take all remaining height */
-    .lyrics-right {
-        flex: 1;
-        min-height: 0;
-        width: 100%;
-        border-left: none;
-        border-top: none;
-        overflow: hidden;
-    }
-
-    .lyrics-scroller {
-        padding: 20vh 24px 80px;
-    }
-
-    .lyrics-line {
-        font-size: 28px;
-        margin-bottom: 20px;
-    }
-
-    .lyrics-line.active {
-        font-size: 30px;
-    }
-
-    .lyrics-line.past {
-        opacity: 0.4;
-        transform: translateY(-10px);
     }
 
     /* Visualizer blob centered on mobile */

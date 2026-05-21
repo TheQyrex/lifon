@@ -33,16 +33,23 @@ export function AlbumScreen() {
         }
     }, [album?.cover]);
 
-    // Swipe down to go back (only when scrolled to the very top of the list)
+    // Scroll to top when album opens (main-content might have been scrolled)
+    useEffect(() => {
+        const mc = document.querySelector('.main-content') as HTMLElement | null;
+        if (mc) mc.scrollTop = 0;
+    }, []);
+
+    // Swipe down to go back — only when content is scrolled to the very top
     const touchStartY = useRef<number>(0);
-    const scrollRef = useRef<HTMLDivElement>(null);
+    const touchStartScrollTop = useRef<number>(0);
     function onTouchStart(e: React.TouchEvent) {
         touchStartY.current = e.touches[0].clientY;
+        const mc = document.querySelector('.main-content') as HTMLElement | null;
+        touchStartScrollTop.current = mc?.scrollTop ?? 0;
     }
     function onTouchEnd(e: React.TouchEvent) {
         const dy = e.changedTouches[0].clientY - touchStartY.current;
-        const scrollTop = scrollRef.current?.scrollTop ?? 0;
-        if (dy > 80 && scrollTop < 10) handleBack();
+        if (dy > 80 && touchStartScrollTop.current < 10) handleBack();
     }
 
     async function shareAlbum() {
@@ -99,7 +106,7 @@ export function AlbumScreen() {
                     animation: 'fadeIn 0.6s ease both',
                 }} />
             )}
-            <div className="album-detail" ref={scrollRef} style={{ position: 'relative', zIndex: 1 }}>
+            <div className="album-detail" style={{ position: 'relative', zIndex: 1 }}>
                 <div className="album-header">
                     <div className="album-cover-row">
                         <button className="btn-back-inline" onClick={handleBack} type="button" aria-label="Назад">

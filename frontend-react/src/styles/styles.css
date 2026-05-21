@@ -1716,7 +1716,7 @@ body.sidebar-collapsed .main-content {
         margin-left: 0;
         width: 100%;
         padding: 16px 16px;
-        padding-bottom: calc(160px + env(safe-area-inset-bottom));
+        padding-bottom: calc(220px + env(safe-area-inset-bottom));
         transition: none;
     }
 
@@ -1764,14 +1764,36 @@ body.sidebar-collapsed .main-content {
         padding: 3px 8px;
     }
 
-    /* ── Экран альбома ── */
+    /* ── Экран альбома — компактный на мобиле ── */
     .album-cover {
-        width: 200px;
-        height: 200px;
+        width: 140px;
+        height: 140px;
     }
 
     .album-info h1 {
-        font-size: 24px;
+        font-size: 20px;
+    }
+
+    .album-info {
+        padding-top: 12px;
+    }
+
+    .album-meta {
+        margin-bottom: 10px;
+    }
+
+    .album-header {
+        padding: 12px 0;
+        gap: 12px;
+    }
+
+    .album-actions {
+        gap: 8px;
+    }
+
+    .btn-play-all {
+        padding: 8px 16px;
+        font-size: 13px;
     }
 
     /* Дополнительный отступ снизу, чтобы плеер не перекрывал последний трек */
