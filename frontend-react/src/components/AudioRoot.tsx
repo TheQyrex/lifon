@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { bindAudio } from '@/lib/audio';
-import { ensureAnalyser, resumeAudioContext } from '@/lib/visualizer';
+import { resumeAudioContext } from '@/lib/visualizer';
 import { usePlayer } from '@/store/player';
 import { api, getToken } from '@/lib/api';
 import { API_BASE } from '@/lib/config';
