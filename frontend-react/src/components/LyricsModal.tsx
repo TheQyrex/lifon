@@ -28,6 +28,7 @@ export function LyricsModal() {
     const [dominant, setDominant] = useState<{ r: number; g: number; b: number }>({ r: 138, g: 43, b: 226 });
     // Mobile: false = cover/player view, true = full lyrics view
     const [expanded, setExpanded] = useState(false);
+    const swipeTouchStartY = useRef<number>(0);
 
     const activeIdx = useMemo(
         () => (lines ? findActiveLine(lines, currentTime) : -1),
@@ -44,6 +45,12 @@ export function LyricsModal() {
     // Reset to cover view when modal closes
     useEffect(() => {
         if (!visible) setExpanded(false);
+    }, [visible]);
+
+    // Sync status-bar color with modal state
+    useEffect(() => {
+        const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+        if (meta) meta.content = visible ? '#1A1A1F' : '#111114';
     }, [visible]);
 
     // Init visualizer lazily when modal opens (keeps background audio working until then)
@@ -146,6 +153,22 @@ export function LyricsModal() {
     if (!currentTrack) return null;
 
     const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+    // Swipe down to dismiss (cover view) or go back to cover (lyrics view)
+    function onSwipeTouchStart(e: React.TouchEvent) {
+        swipeTouchStartY.current = e.touches[0].clientY;
+    }
+    function onSwipeTouchEnd(e: React.TouchEvent) {
+        const dy = e.changedTouches[0].clientY - swipeTouchStartY.current;
+        if (dy > 80) {
+            if (expanded) {
+                const scrollTop = scrollerRef.current?.scrollTop ?? 0;
+                if (scrollTop < 10) setExpanded(false);
+            } else {
+                toggle();
+            }
+        }
+    }
     const activeLineText = activeIdx >= 0 && lines ? lines[activeIdx].text : null;
     const hasLyrics = lines !== null && lines.length > 0;
 
@@ -154,6 +177,8 @@ export function LyricsModal() {
             id="lyricsModal"
             ref={modalRef}
             className={`lyrics-modal${visible ? '' : ' hidden'}${contentHidden ? ' lyrics-hidden' : ''}${visualizerOff ? ' visualizer-off' : ''}${expanded ? ' lyrics-expanded' : ''}`}
+            onTouchStart={onSwipeTouchStart}
+            onTouchEnd={onSwipeTouchEnd}
         >
             <div className="lyrics-content">
 
