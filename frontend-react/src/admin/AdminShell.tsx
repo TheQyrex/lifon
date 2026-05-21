@@ -28,11 +28,8 @@ export function AdminShell() {
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" /></svg>
                         К плееру
                     </Link>
-                    <div className="mt-3 flex items-center gap-2">
-                        <img src="/admin.png" alt="" className="w-8 h-8 rounded-lg object-contain shrink-0" />
-                        <h1 className="text-lg font-bold tracking-tight">
-                            LifonMUSIC <span className="text-accent">admin</span>
-                        </h1>
+                    <div className="mt-3 flex items-center">
+                        <img src="/admin.png" alt="LifonMUSIC admin" className="w-10 h-10 rounded-lg object-contain shrink-0" />
                     </div>
                 </div>
 

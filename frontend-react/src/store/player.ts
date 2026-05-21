@@ -85,7 +85,18 @@ export const usePlayer = create<PlayerState>((set, get) => ({
         const a = audio();
         if (!a || !get().currentTrack) return;
         if (a.paused) {
-            a.play().then(() => set({ isPlaying: true })).catch(() => set({ isPlaying: false }));
+            a.play()
+                .then(() => set({ isPlaying: true }))
+                .catch(() => {
+                    // iOS revokes audio session after a long pause.
+                    // Reassigning src re-requests the session without losing the URL.
+                    const t = a.currentTime;
+                    a.src = a.src;
+                    a.currentTime = t;
+                    a.play()
+                        .then(() => set({ isPlaying: true }))
+                        .catch(() => set({ isPlaying: false }));
+                });
         } else {
             a.pause();
             set({ isPlaying: false });

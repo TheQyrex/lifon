@@ -123,6 +123,7 @@ body.sidebar-collapsed .broadcast-bar { left: 80px; }
     color: #fff;
     font-size: 15px;
     font-weight: 700;
+    font-family: inherit;
     cursor: pointer;
 }
 .broadcast-card-ok:hover { filter: brightness(1.1); }
