@@ -53,9 +53,10 @@ export function LyricsModal() {
         if (meta) meta.content = visible ? '#1A1A1F' : '#111114';
     }, [visible]);
 
-    // Init visualizer lazily when modal opens (keeps background audio working until then)
+    // Init visualizer lazily when modal opens — skip on mobile so audio keeps working in background
     useEffect(() => {
         if (!visible) return;
+        if (window.matchMedia('(max-width: 768px)').matches) return;
         const audioEl = document.getElementById('audioPlayer') as HTMLAudioElement | null;
         if (audioEl) ensureAnalyser(audioEl);
     }, [visible]);

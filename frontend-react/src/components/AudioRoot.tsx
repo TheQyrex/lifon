@@ -92,7 +92,19 @@ export function AudioRoot() {
         if (!a) return;
         bindAudio(a);
 
-        const onTime    = () => usePlayer.getState()._setTime(a.currentTime);
+        const onTime    = () => {
+            const t = a.currentTime;
+            usePlayer.getState()._setTime(t);
+            if ('mediaSession' in navigator && !isNaN(a.duration) && a.duration > 0) {
+                try {
+                    navigator.mediaSession.setPositionState({
+                        duration: a.duration,
+                        playbackRate: a.playbackRate,
+                        position: t,
+                    });
+                } catch { /* ignore */ }
+            }
+        };
         const onMeta    = () => usePlayer.getState()._setDuration(a.duration);
         const onPlay    = () => {
             // resumeAudioContext only if already set up (lazy — initialised when lyrics modal opens)

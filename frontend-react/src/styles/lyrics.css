@@ -608,6 +608,7 @@
         padding: max(16px, env(safe-area-inset-top)) 16px 8px;
         position: relative;
         z-index: 10;
+        background: #1A1A1F;
     }
 
     .btn-close-lyrics-mobile {
@@ -766,16 +767,16 @@
         text-align: right;
     }
 
-    /* Active line — plain text, no background, tap to open lyrics */
+    /* Active line — plain text, full wrap, same feel as lyrics view */
     .lyrics-activeline-pill {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: center;
-        gap: 8px;
+        gap: 6px;
         width: 100%;
         background: none;
         border: none;
-        padding: 10px 0;
+        padding: 8px 0 0;
         cursor: pointer;
         transition: opacity 0.15s ease;
     }
@@ -785,13 +786,13 @@
     }
 
     .lyrics-activeline-text {
-        font-size: 17px;
-        font-weight: 500;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        color: rgba(255, 255, 255, 0.75);
-        max-width: calc(100% - 30px);
+        font-size: 24px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.8);
+        text-align: center;
+        white-space: normal;
+        word-break: break-word;
+        line-height: 1.3;
     }
 
     /* ── Lyrics text view (expanded) ── */
