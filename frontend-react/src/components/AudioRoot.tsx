@@ -75,15 +75,11 @@ export function AudioRoot() {
         ms.setActionHandler('pause',         () => { usePlayer.getState().togglePlay(); });
         ms.setActionHandler('previoustrack', () => { usePlayer.getState().prev(); });
         ms.setActionHandler('nexttrack',     () => { usePlayer.getState().next(); });
-        ms.setActionHandler('seekto', (d) => {
-            if (d.seekTime !== undefined) usePlayer.getState().seek(d.seekTime);
-        });
         return () => {
             ms.setActionHandler('play',          null);
             ms.setActionHandler('pause',         null);
             ms.setActionHandler('previoustrack', null);
             ms.setActionHandler('nexttrack',     null);
-            ms.setActionHandler('seekto',        null);
         };
     }, []);
 
