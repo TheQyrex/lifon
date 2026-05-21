@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { audio } from '@/lib/audio';
+import { resumeAudioContext } from '@/lib/visualizer';
 import type { Track } from '@/types/api';
 
 interface PlayerState {
@@ -78,6 +79,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
         if (!src) return;
         a.src = src;
         a.volume = get().isMuted ? 0 : get().volume;
+        resumeAudioContext();
         a.play()
             .then(() => set({ isPlaying: true }))
             .catch(() => {
@@ -97,6 +99,8 @@ export const usePlayer = create<PlayerState>((set, get) => ({
         const a = audio();
         if (!a || !get().currentTrack) return;
         if (a.paused) {
+            // Resume AudioContext synchronously within the user gesture so iOS doesn't block it.
+            resumeAudioContext();
             a.play()
                 .then(() => set({ isPlaying: true }))
                 .catch(() => {
