@@ -47,7 +47,7 @@ export function LyricsModal() {
         if (!visible) setExpanded(false);
     }, [visible]);
 
-    // Sync status-bar color with modal state
+    // Sync Chrome-for-Android toolbar color with modal state
     useEffect(() => {
         const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
         if (meta) meta.content = visible ? '#1A1A1F' : '#111114';

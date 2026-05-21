@@ -62,22 +62,26 @@ export function AudioRoot() {
             resumeAudioContext();
             const { isPlaying } = usePlayer.getState();
             const a = ref.current;
-            if (a && isPlaying && a.paused) a.play().catch(() => {});
+            if (a && isPlaying && a.paused) {
+                a.play().catch(() => {
+                    // visibilitychange is not a user gesture — sync state so UI is consistent
+                    usePlayer.getState()._setIsPlaying(false);
+                });
+            }
         };
         document.addEventListener('visibilitychange', handleVisibility);
         return () => document.removeEventListener('visibilitychange', handleVisibility);
     }, []);
 
+    // Only register prev/next — let iOS natively control play/pause on lock screen.
+    // audio 'play'/'pause' events keep the store in sync without interfering with
+    // iOS audio session management.
     useEffect(() => {
         if (!('mediaSession' in navigator)) return;
         const ms = navigator.mediaSession;
-        ms.setActionHandler('play',          () => { usePlayer.getState().togglePlay(); });
-        ms.setActionHandler('pause',         () => { usePlayer.getState().togglePlay(); });
         ms.setActionHandler('previoustrack', () => { usePlayer.getState().prev(); });
         ms.setActionHandler('nexttrack',     () => { usePlayer.getState().next(); });
         return () => {
-            ms.setActionHandler('play',          null);
-            ms.setActionHandler('pause',         null);
             ms.setActionHandler('previoustrack', null);
             ms.setActionHandler('nexttrack',     null);
         };
