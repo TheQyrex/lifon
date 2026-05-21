@@ -1711,6 +1711,12 @@ body.sidebar-collapsed .main-content {
         color: #E8D5FF;
     }
 
+    /* Push all app content below the iOS status bar */
+    .app {
+        padding-top: env(safe-area-inset-top);
+        box-sizing: border-box;
+    }
+
     /* ── Основной контент ── */
     .main-content {
         margin-left: 0;
