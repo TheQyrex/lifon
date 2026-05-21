@@ -112,7 +112,7 @@ export default function App() {
     }
 
     // Мигрированные пользователи без TG обязаны привязать аккаунт перед входом
-    if (user.require_telegram && !user.telegram_id) {
+    if (!user.is_admin && user.require_telegram && !user.telegram_id) {
         return <div className="app"><LinkTelegramScreen /></div>;
     }
 
