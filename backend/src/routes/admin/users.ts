@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../../env';
+import { hashPassword } from '../../lib/crypto';
+import { validatePassword, validateUsername, validationErrorResponse } from '../../lib/validation';
 
 const users = new Hono<AppEnv>();
 
@@ -14,6 +16,7 @@ users.get('/', async (c) => {
 
     const rows = await c.env.DB.prepare(
         `SELECT u.id, u.username, u.is_admin, u.created_at, u.last_seen_at,
+                u.telegram_id, u.require_telegram,
                 (SELECT COUNT(*) FROM listens l WHERE l.user_id = u.id) AS listens,
                 (SELECT COUNT(*) FROM likes   k WHERE k.user_id = u.id) AS likes
          FROM users u
@@ -23,6 +26,7 @@ users.get('/', async (c) => {
     ).bind(...binds).all<{
         id: number; username: string; is_admin: number;
         created_at: number; last_seen_at: number | null;
+        telegram_id: number | null; require_telegram: number;
         listens: number; likes: number;
     }>();
 
@@ -38,6 +42,8 @@ users.get('/', async (c) => {
             is_admin: !!u.is_admin,
             created_at: u.created_at,
             last_seen_at: u.last_seen_at,
+            telegram_id: u.telegram_id,
+            require_telegram: !!u.require_telegram,
             listens: u.listens,
             likes: u.likes,
         })),
@@ -47,17 +53,45 @@ users.get('/', async (c) => {
     });
 });
 
-// GET /admin/users/:id — детальная карточка с топом треков и общими цифрами
+// POST /admin/users — ручное создание пользователя
+users.post('/', async (c) => {
+    let username: string;
+    let password: string;
+    let require_telegram: boolean;
+    try {
+        const body = await c.req.json<{ username?: unknown; password?: unknown; require_telegram?: unknown }>();
+        username = validateUsername(body.username);
+        password = validatePassword(body.password);
+        require_telegram = body.require_telegram === true;
+    } catch (err) {
+        return validationErrorResponse(c, err);
+    }
+
+    const taken = await c.env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(username).first();
+    if (taken) return c.json({ ok: false, error: 'username_taken', message: 'Это имя уже занято' }, 409);
+
+    const { hash, salt, iterations } = await hashPassword(password);
+
+    const inserted = await c.env.DB.prepare(
+        'INSERT INTO users (username, password_hash, password_salt, password_iter, require_telegram) VALUES (?, ?, ?, ?, ?) RETURNING id',
+    ).bind(username, hash, salt, iterations, require_telegram ? 1 : 0).first<{ id: number }>();
+
+    if (!inserted) return c.json({ ok: false, error: 'server_error' }, 500);
+    return c.json({ ok: true, id: inserted.id }, 201);
+});
+
+// GET /admin/users/:id — детальная карточка
 users.get('/:id', async (c) => {
     const id = Number(c.req.param('id'));
     if (!Number.isInteger(id) || id <= 0) return c.json({ ok: false, error: 'bad_id' }, 400);
 
     const u = await c.env.DB.prepare(
-        `SELECT id, username, is_admin, created_at, last_seen_at
+        `SELECT id, username, is_admin, created_at, last_seen_at, telegram_id, require_telegram
          FROM users WHERE id = ?`,
     ).bind(id).first<{
         id: number; username: string; is_admin: number;
         created_at: number; last_seen_at: number | null;
+        telegram_id: number | null; require_telegram: number;
     }>();
     if (!u) return c.json({ ok: false, error: 'not_found' }, 404);
 
@@ -107,6 +141,8 @@ users.get('/:id', async (c) => {
             is_admin: !!u.is_admin,
             created_at: u.created_at,
             last_seen_at: u.last_seen_at,
+            telegram_id: u.telegram_id,
+            require_telegram: !!u.require_telegram,
         },
         totals: {
             listens: totals?.listens ?? 0,
@@ -119,7 +155,7 @@ users.get('/:id', async (c) => {
     });
 });
 
-// PATCH /admin/users/:id — пока меняем только is_admin
+// PATCH /admin/users/:id — изменение полей: is_admin, require_telegram, telegram_id
 users.patch('/:id', async (c) => {
     const id = Number(c.req.param('id'));
     if (!Number.isInteger(id) || id <= 0) return c.json({ ok: false, error: 'bad_id' }, 400);
@@ -129,20 +165,43 @@ users.patch('/:id', async (c) => {
         return c.json({ ok: false, error: 'cannot_self_modify', message: 'Нельзя менять свои права' }, 400);
     }
 
-    const body = await c.req.json<{ is_admin?: unknown }>().catch(() => null);
-    if (!body || typeof body.is_admin !== 'boolean') {
-        return c.json({ ok: false, error: 'bad_request' }, 400);
+    const body = await c.req.json<{
+        is_admin?: unknown;
+        require_telegram?: unknown;
+        telegram_id?: unknown;
+    }>().catch(() => null);
+    if (!body) return c.json({ ok: false, error: 'bad_request' }, 400);
+
+    const setClauses: string[] = [];
+    const values: unknown[] = [];
+
+    if (typeof body.is_admin === 'boolean') {
+        setClauses.push('is_admin = ?');
+        values.push(body.is_admin ? 1 : 0);
+    }
+    if (typeof body.require_telegram === 'boolean') {
+        setClauses.push('require_telegram = ?');
+        values.push(body.require_telegram ? 1 : 0);
+    }
+    if ('telegram_id' in body) {
+        if (body.telegram_id === null || typeof body.telegram_id === 'number') {
+            setClauses.push('telegram_id = ?');
+            values.push(body.telegram_id);
+        }
     }
 
+    if (setClauses.length === 0) return c.json({ ok: false, error: 'bad_request', message: 'Нет полей для обновления' }, 400);
+
+    values.push(id);
     const info = await c.env.DB.prepare(
-        'UPDATE users SET is_admin = ? WHERE id = ?',
-    ).bind(body.is_admin ? 1 : 0, id).run();
+        `UPDATE users SET ${setClauses.join(', ')} WHERE id = ?`,
+    ).bind(...values).run();
 
     if (!info.meta.changes) return c.json({ ok: false, error: 'not_found' }, 404);
     return c.json({ ok: true });
 });
 
-// DELETE /admin/users/:id — каскадно удаляются listens/likes (ON DELETE CASCADE)
+// DELETE /admin/users/:id
 users.delete('/:id', async (c) => {
     const id = Number(c.req.param('id'));
     if (!Number.isInteger(id) || id <= 0) return c.json({ ok: false, error: 'bad_id' }, 400);

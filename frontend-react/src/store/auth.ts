@@ -16,6 +16,7 @@ interface AuthState {
     loginWithTelegram: (data: TelegramAuthData) => Promise<void>;
     completeTelegramSetup: (username: string, password: string) => Promise<void>;
     cancelTelegramSetup: () => void;
+    linkTelegram: (data: TelegramAuthData) => Promise<void>;
     logout: () => void;
 }
 
@@ -68,6 +69,11 @@ export const useAuth = create<AuthState>((set, get) => ({
 
     cancelTelegramSetup() {
         set({ pendingTg: null });
+    },
+
+    async linkTelegram(data) {
+        const res = await api.post<{ ok: true; telegram_id: number }>('/auth/telegram/link', data);
+        set((s) => ({ user: s.user ? { ...s.user, telegram_id: res.telegram_id } : null }));
     },
 
     logout() {

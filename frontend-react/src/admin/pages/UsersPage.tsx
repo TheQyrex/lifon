@@ -10,6 +10,8 @@ interface UserListItem {
     is_admin: boolean;
     created_at: number;
     last_seen_at: number | null;
+    telegram_id: number | null;
+    require_telegram: boolean;
     listens: number;
     likes: number;
 }
@@ -29,6 +31,7 @@ export function UsersPage() {
     const [error, setError] = useState<string | null>(null);
     const [q, setQ] = useState('');
     const [offset, setOffset] = useState(0);
+    const [showCreate, setShowCreate] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -42,12 +45,30 @@ export function UsersPage() {
         return () => { cancelled = true; };
     }, [q, offset]);
 
+    function reload() {
+        setQ((v) => v); // trigger re-fetch via dependency change trick
+        const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) });
+        if (q.trim()) params.set('q', q.trim());
+        api.get<UsersResponse>(`/admin/users?${params}`)
+            .then((res) => { setData(res); setError(null); })
+            .catch((err) => { setError(err instanceof ApiException ? err.message : 'Ошибка'); });
+    }
+
     return (
         <div className="space-y-6">
-            <header>
-                <h1 className="text-3xl font-bold tracking-tight">Пользователи</h1>
-                <p className="text-white/40 mt-1">Список юзеров. Клик по строке откроет карточку со статистикой.</p>
+            <header className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Пользователи</h1>
+                    <p className="text-white/40 mt-1">Список юзеров. Клик по строке откроет карточку со статистикой.</p>
+                </div>
+                <Button variant="primary" size="sm" onClick={() => setShowCreate((v) => !v)}>
+                    {showCreate ? 'Отмена' : '+ Добавить'}
+                </Button>
             </header>
+
+            {showCreate && (
+                <CreateUserForm onCreated={() => { setShowCreate(false); reload(); }} />
+            )}
 
             <Card
                 title={data ? `Всего: ${data.total}` : 'Загружаем…'}
@@ -68,6 +89,8 @@ export function UsersPage() {
                             <thead>
                                 <tr>
                                     <Th>Юзер</Th>
+                                    <Th>Telegram</Th>
+                                    <Th>Требуется TG</Th>
                                     <Th>Прослушиваний</Th>
                                     <Th>Лайков</Th>
                                     <Th>Создан</Th>
@@ -82,6 +105,14 @@ export function UsersPage() {
                                             <Link to={`/admin/users/${u.id}`} className="text-white hover:text-accent">
                                                 {u.username}
                                             </Link>
+                                        </Td>
+                                        <Td className="text-white/70 font-mono text-xs">
+                                            {u.telegram_id ? String(u.telegram_id) : <span className="text-white/30">—</span>}
+                                        </Td>
+                                        <Td>
+                                            {u.require_telegram
+                                                ? <span className="text-yellow-400 text-xs">обяз.</span>
+                                                : <span className="text-white/30 text-xs">нет</span>}
                                         </Td>
                                         <Td className="text-white/70">{u.listens}</Td>
                                         <Td className="text-white/70">{u.likes}</Td>
@@ -113,3 +144,57 @@ export function UsersPage() {
     );
 }
 
+function CreateUserForm({ onCreated }: { onCreated: () => void }) {
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [requireTg, setRequireTg] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [flash, setFlash] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+
+    async function submit() {
+        if (!username || !password) { setFlash({ kind: 'error', text: 'Заполни все поля' }); return; }
+        setBusy(true);
+        try {
+            await api.post('/admin/users', { username, password, require_telegram: requireTg });
+            setFlash({ kind: 'success', text: `Пользователь «${username}» создан` });
+            setUsername(''); setPassword(''); setRequireTg(false);
+            setTimeout(onCreated, 800);
+        } catch (err) {
+            setFlash({ kind: 'error', text: err instanceof ApiException ? err.message : 'Ошибка' });
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    return (
+        <Card title="Новый пользователь">
+            {flash && <Flash kind={flash.kind}>{flash.text}</Flash>}
+            <div className="flex flex-col gap-3 max-w-sm">
+                <Input
+                    placeholder="Имя пользователя"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                />
+                <Input
+                    type="password"
+                    placeholder="Пароль"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+                />
+                <label className="flex items-center gap-2 text-sm text-white/70 cursor-pointer select-none">
+                    <input
+                        type="checkbox"
+                        checked={requireTg}
+                        onChange={(e) => setRequireTg(e.target.checked)}
+                        className="accent-accent w-4 h-4"
+                    />
+                    Требовать привязку Telegram
+                </label>
+                <Button variant="primary" size="sm" onClick={submit} disabled={busy}>
+                    {busy ? 'Создаём…' : 'Создать'}
+                </Button>
+            </div>
+        </Card>
+    );
+}

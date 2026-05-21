@@ -3,6 +3,8 @@ export interface User {
     username: string;
     is_admin: boolean;
     avatar_url?: string | null;
+    telegram_id?: number | null;
+    require_telegram?: boolean;
 }
 
 export interface Track {

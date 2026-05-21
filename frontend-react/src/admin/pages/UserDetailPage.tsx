@@ -13,6 +13,8 @@ interface UserDetail {
         is_admin: boolean;
         created_at: number;
         last_seen_at: number | null;
+        telegram_id: number | null;
+        require_telegram: boolean;
     };
     totals: {
         listens: number;
@@ -74,6 +76,35 @@ export function UserDetailPage() {
         }
     }
 
+    async function toggleRequireTg() {
+        if (!data) return;
+        setBusy(true);
+        try {
+            await api.patch(`/admin/users/${data.user.id}`, { require_telegram: !data.user.require_telegram });
+            setFlash({ kind: 'success', text: data.user.require_telegram ? 'TG больше не требуется' : 'TG теперь обязателен' });
+            await load();
+        } catch (err) {
+            setFlash({ kind: 'error', text: err instanceof ApiException ? err.message : 'Ошибка' });
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function unlinkTg() {
+        if (!data) return;
+        if (!confirm('Отвязать Telegram от этого аккаунта?')) return;
+        setBusy(true);
+        try {
+            await api.patch(`/admin/users/${data.user.id}`, { telegram_id: null });
+            setFlash({ kind: 'success', text: 'Telegram отвязан' });
+            await load();
+        } catch (err) {
+            setFlash({ kind: 'error', text: err instanceof ApiException ? err.message : 'Ошибка' });
+        } finally {
+            setBusy(false);
+        }
+    }
+
     async function remove() {
         if (!data) return;
         if (!confirm(`Удалить пользователя «${data.user.username}»? Все его прослушивания и лайки удалятся.`)) return;
@@ -109,8 +140,19 @@ export function UserDetailPage() {
                         Создан {formatTs(u.created_at)} · Заходил {u.last_seen_at ? formatTs(u.last_seen_at) : '—'}
                         {u.is_admin && <span className="ml-3 px-2 py-0.5 rounded bg-accent/15 text-accent text-xs">admin</span>}
                     </p>
+                    <p className="text-white/40 mt-1 text-sm">
+                        Telegram:{' '}
+                        {u.telegram_id
+                            ? <span className="text-white/70 font-mono">{u.telegram_id}</span>
+                            : <span className="text-white/30">не привязан</span>}
+                        {' · '}
+                        TG обязателен:{' '}
+                        {u.require_telegram
+                            ? <span className="text-yellow-400">да</span>
+                            : <span className="text-white/30">нет</span>}
+                    </p>
                 </div>
-                <div className="flex gap-2 shrink-0">
+                <div className="flex flex-wrap gap-2 shrink-0 justify-end">
                     <Button
                         variant="secondary"
                         size="sm"
@@ -120,6 +162,24 @@ export function UserDetailPage() {
                     >
                         {u.is_admin ? 'Снять права админа' : 'Сделать админом'}
                     </Button>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={toggleRequireTg}
+                        disabled={busy || isSelf}
+                    >
+                        {u.require_telegram ? 'Снять требование TG' : 'Потребовать TG'}
+                    </Button>
+                    {u.telegram_id && (
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={unlinkTg}
+                            disabled={busy || isSelf}
+                        >
+                            Отвязать TG
+                        </Button>
+                    )}
                     <Button
                         variant="danger"
                         size="sm"

@@ -4,6 +4,7 @@ import { hashPassword, signJwt, verifyPassword } from '../lib/crypto';
 import { clientIp, rateLimit } from '../lib/ratelimit';
 import { validatePassword, validateStrongPassword, validateUsername, validationErrorResponse } from '../lib/validation';
 import { getMaintenanceState } from '../lib/maintenance';
+import { requireAuth } from '../lib/auth';
 
 interface UserRow {
     id: number;
@@ -13,6 +14,7 @@ interface UserRow {
     password_iter: number;
     is_admin: number;
     telegram_id: number | null;
+    require_telegram: number;
 }
 
 const auth = new Hono<AppEnv>();
@@ -60,7 +62,7 @@ auth.post('/login', async (c) => {
     if (!failCheck.ok) return c.json({ ok: false, error: 'account_locked', message: 'Слишком много попыток. Попробуйте позже.' }, 429);
 
     const user = await c.env.DB.prepare(
-        'SELECT id, username, password_hash, password_salt, password_iter, is_admin, telegram_id FROM users WHERE username = ?',
+        'SELECT id, username, password_hash, password_salt, password_iter, is_admin, telegram_id, require_telegram FROM users WHERE username = ?',
     ).bind(username).first<UserRow>();
 
     // Telegram-only account — no password was ever set
@@ -101,7 +103,13 @@ auth.post('/login', async (c) => {
     return c.json({
         ok: true,
         token,
-        user: { id: user.id, username: user.username, is_admin: !!user.is_admin },
+        user: {
+            id: user.id,
+            username: user.username,
+            is_admin: !!user.is_admin,
+            telegram_id: user.telegram_id,
+            require_telegram: !!user.require_telegram,
+        },
     });
 });
 
@@ -230,6 +238,45 @@ auth.post('/telegram/complete', async (c) => {
 
     const token = await signJwt({ sub: inserted.id, name: username, adm: 0 }, c.env.JWT_SECRET);
     return c.json({ ok: true, token, user: { id: inserted.id, username, is_admin: false } });
+});
+
+// Привязка Telegram к уже существующему аккаунту (вошедший пользователь без TG).
+auth.post('/telegram/link', requireAuth, async (c) => {
+    const limit = await rateLimit(c.env, `tg_link:${clientIp(c.req.raw)}`, 10, 5 * 60);
+    if (!limit.ok) return c.json({ ok: false, error: 'rate_limited' }, 429);
+
+    const botToken = c.env.TELEGRAM_BOT_TOKEN;
+    if (!botToken) return c.json({ ok: false, error: 'server_error' }, 500);
+
+    let body: Record<string, unknown>;
+    try {
+        body = await c.req.json();
+    } catch {
+        return c.json({ ok: false, error: 'bad_request' }, 400);
+    }
+
+    const { hash, ...rawData } = body;
+    if (typeof hash !== 'string') return c.json({ ok: false, error: 'invalid_data' }, 400);
+
+    const authDate = Number(rawData.auth_date);
+    if (!authDate || Date.now() / 1000 - authDate > 86400) {
+        return c.json({ ok: false, error: 'auth_expired', message: 'Данные устарели, попробуй ещё раз' }, 400);
+    }
+
+    if (!(await verifyTelegramHash(rawData, hash, botToken))) {
+        return c.json({ ok: false, error: 'invalid_hash', message: 'Ошибка верификации Telegram' }, 401);
+    }
+
+    const telegramId = Number(rawData.id);
+    if (!telegramId || !Number.isFinite(telegramId)) return c.json({ ok: false, error: 'invalid_data' }, 400);
+
+    const already = await c.env.DB.prepare('SELECT id FROM users WHERE telegram_id = ?').bind(telegramId).first();
+    if (already) return c.json({ ok: false, error: 'already_linked', message: 'Этот Telegram уже привязан к другому аккаунту' }, 409);
+
+    const me = c.get('user')!;
+    await c.env.DB.prepare('UPDATE users SET telegram_id = ? WHERE id = ?').bind(telegramId, me.id).run();
+
+    return c.json({ ok: true, telegram_id: telegramId });
 });
 
 export default auth;

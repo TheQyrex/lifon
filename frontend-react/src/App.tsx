@@ -16,6 +16,7 @@ import { Player } from '@/components/Player';
 import { LyricsModal } from '@/components/LyricsModal';
 import { Broadcasts } from '@/components/Broadcasts';
 import { Snow } from '@/components/Snow';
+import { LinkTelegramScreen } from '@/screens/LinkTelegramScreen';
 import { AdminGuard } from '@/admin/AdminGuard';
 import { AdminShell } from '@/admin/AdminShell';
 import { StatsPage } from '@/admin/pages/StatsPage';
@@ -108,6 +109,11 @@ export default function App() {
                 {showAuth ? <AuthScreen /> : <WelcomeScreen />}
             </div>
         );
+    }
+
+    // Мигрированные пользователи без TG обязаны привязать аккаунт перед входом
+    if (user.require_telegram && !user.telegram_id) {
+        return <div className="app"><LinkTelegramScreen /></div>;
     }
 
     return (

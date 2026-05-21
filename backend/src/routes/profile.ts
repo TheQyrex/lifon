@@ -10,13 +10,15 @@ profile.use('*', requireAuth);
 profile.get('/', async (c) => {
     const user = c.get('user')!;
     const row = await c.env.DB.prepare(
-        'SELECT id, username, is_admin, avatar_key, created_at FROM users WHERE id = ?',
+        'SELECT id, username, is_admin, avatar_key, created_at, telegram_id, require_telegram FROM users WHERE id = ?',
     ).bind(user.id).first<{
         id: number;
         username: string;
         is_admin: number;
         avatar_key: string | null;
         created_at: number;
+        telegram_id: number | null;
+        require_telegram: number;
     }>();
 
     if (!row) return c.json({ ok: false, error: 'not_found' }, 404);
@@ -50,6 +52,8 @@ profile.get('/', async (c) => {
             is_admin: !!row.is_admin,
             avatar_url: publicUrl(c.env, row.avatar_key),
             created_at: row.created_at,
+            telegram_id: row.telegram_id,
+            require_telegram: !!row.require_telegram,
         },
         totals: {
             listens: totals?.listens ?? 0,
