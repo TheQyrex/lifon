@@ -78,7 +78,19 @@ export const usePlayer = create<PlayerState>((set, get) => ({
         if (!src) return;
         a.src = src;
         a.volume = get().isMuted ? 0 : get().volume;
-        a.play().then(() => set({ isPlaying: true })).catch(() => set({ isPlaying: false }));
+        a.play()
+            .then(() => set({ isPlaying: true }))
+            .catch(() => {
+                // iOS audio session may be revoked; a.load() re-requests it after src change.
+                const onCanPlay = () => {
+                    a.removeEventListener('canplay', onCanPlay);
+                    a.play()
+                        .then(() => set({ isPlaying: true }))
+                        .catch(() => set({ isPlaying: false }));
+                };
+                a.addEventListener('canplay', onCanPlay);
+                a.load();
+            });
     },
 
     togglePlay() {
@@ -88,14 +100,17 @@ export const usePlayer = create<PlayerState>((set, get) => ({
             a.play()
                 .then(() => set({ isPlaying: true }))
                 .catch(() => {
-                    // iOS revokes audio session after a long pause.
-                    // Reassigning src re-requests the session without losing the URL.
+                    // iOS revokes audio session after a long pause; a.load() re-requests it.
                     const t = a.currentTime;
-                    a.src = a.src;
-                    a.currentTime = t;
-                    a.play()
-                        .then(() => set({ isPlaying: true }))
-                        .catch(() => set({ isPlaying: false }));
+                    const onCanPlay = () => {
+                        a.removeEventListener('canplay', onCanPlay);
+                        a.currentTime = t;
+                        a.play()
+                            .then(() => set({ isPlaying: true }))
+                            .catch(() => set({ isPlaying: false }));
+                    };
+                    a.addEventListener('canplay', onCanPlay);
+                    a.load();
                 });
         } else {
             a.pause();
