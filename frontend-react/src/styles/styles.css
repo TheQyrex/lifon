@@ -1766,8 +1766,8 @@ body.sidebar-collapsed .main-content {
 
     /* ── Экран альбома — компактный на мобиле ── */
     .album-cover {
-        width: 140px;
-        height: 140px;
+        width: 180px;
+        height: 180px;
     }
 
     .album-info h1 {

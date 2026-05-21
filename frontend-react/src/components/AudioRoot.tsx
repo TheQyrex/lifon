@@ -55,6 +55,19 @@ export function AudioRoot() {
         });
     }, [currentTrack, cover]);
 
+    // Resume AudioContext (if set up) when app returns from background on iOS
+    useEffect(() => {
+        const handleVisibility = () => {
+            if (document.visibilityState !== 'visible') return;
+            resumeAudioContext();
+            const { isPlaying } = usePlayer.getState();
+            const a = ref.current;
+            if (a && isPlaying && a.paused) a.play().catch(() => {});
+        };
+        document.addEventListener('visibilitychange', handleVisibility);
+        return () => document.removeEventListener('visibilitychange', handleVisibility);
+    }, []);
+
     useEffect(() => {
         if (!('mediaSession' in navigator)) return;
         const ms = navigator.mediaSession;
@@ -82,9 +95,7 @@ export function AudioRoot() {
         const onTime    = () => usePlayer.getState()._setTime(a.currentTime);
         const onMeta    = () => usePlayer.getState()._setDuration(a.duration);
         const onPlay    = () => {
-            // WebAudio API требует gesture-инициированной активации.
-            // play() — самый первый gesture, после которого можно создавать AudioContext.
-            ensureAnalyser(a);
+            // resumeAudioContext only if already set up (lazy — initialised when lyrics modal opens)
             resumeAudioContext();
             usePlayer.getState()._setIsPlaying(true);
             if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
@@ -113,5 +124,5 @@ export function AudioRoot() {
         };
     }, []);
 
-    return <audio id="audioPlayer" ref={ref} crossOrigin="anonymous" />;
+    return <audio id="audioPlayer" ref={ref} crossOrigin="anonymous" playsInline />;
 }
