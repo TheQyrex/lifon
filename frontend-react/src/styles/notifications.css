@@ -160,3 +160,13 @@ body.sidebar-collapsed .broadcast-bar { left: 80px; }
 body.app-has-notification .app {
     padding-top: 44px;
 }
+
+@media (max-width: 768px) {
+    .broadcast-bar {
+        left: 0 !important;
+        padding-top: max(10px, env(safe-area-inset-top));
+    }
+    body.app-has-notification .app {
+        padding-top: calc(max(44px, 34px + env(safe-area-inset-top)));
+    }
+}

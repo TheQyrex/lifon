@@ -85,7 +85,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
         const a = audio();
         if (!a || !get().currentTrack) return;
         if (a.paused) {
-            a.play().then(() => set({ isPlaying: true })).catch(() => {});
+            a.play().then(() => set({ isPlaying: true })).catch(() => set({ isPlaying: false }));
         } else {
             a.pause();
             set({ isPlaying: false });
