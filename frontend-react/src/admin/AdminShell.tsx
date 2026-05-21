@@ -29,7 +29,7 @@ export function AdminShell() {
                         К плееру
                     </Link>
                     <div className="mt-3 flex items-center">
-                        <img src="/admin.png" alt="LifonMUSIC admin" className="rounded-lg object-contain shrink-0" style={{ height: 70, width: 'auto' }} />
+                        <img src="/Logo.png" alt="LifonMUSIC" className="logo-full" />
                     </div>
                 </div>
 
