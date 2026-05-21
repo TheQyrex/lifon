@@ -44,15 +44,32 @@ export function AudioRoot() {
         return () => window.removeEventListener('beforeunload', handleUnload);
     }, []);
 
-    // Media Session API — lock screen controls
+    // Media Session API — metadata + all action handlers together.
+    // iOS reads this as a unit to decide which lock-screen controls to show:
+    // all 4 handlers (play/pause/prev/next) signals a full music player → prev/next buttons.
+    // Without play/pause, iOS falls back to its default podcast widget (10-second skip).
     useEffect(() => {
         if (!('mediaSession' in navigator) || !currentTrack) return;
+        const ms = navigator.mediaSession;
+
         const artwork = cover ? [{ src: cover, sizes: '512x512', type: 'image/jpeg' as const }] : [];
-        navigator.mediaSession.metadata = new MediaMetadata({
+        ms.metadata = new MediaMetadata({
             title: currentTrack.title,
             artist: currentTrack.artist,
             artwork,
         });
+
+        ms.setActionHandler('play',          () => { usePlayer.getState().togglePlay(); });
+        ms.setActionHandler('pause',         () => { usePlayer.getState().togglePlay(); });
+        ms.setActionHandler('previoustrack', () => { usePlayer.getState().prev(); });
+        ms.setActionHandler('nexttrack',     () => { usePlayer.getState().next(); });
+
+        return () => {
+            ms.setActionHandler('play',          null);
+            ms.setActionHandler('pause',         null);
+            ms.setActionHandler('previoustrack', null);
+            ms.setActionHandler('nexttrack',     null);
+        };
     }, [currentTrack, cover]);
 
     // Resume AudioContext (if set up) when app returns from background on iOS
@@ -64,27 +81,12 @@ export function AudioRoot() {
             const a = ref.current;
             if (a && isPlaying && a.paused) {
                 a.play().catch(() => {
-                    // visibilitychange is not a user gesture — sync state so UI is consistent
                     usePlayer.getState()._setIsPlaying(false);
                 });
             }
         };
         document.addEventListener('visibilitychange', handleVisibility);
         return () => document.removeEventListener('visibilitychange', handleVisibility);
-    }, []);
-
-    // Only register prev/next — let iOS natively control play/pause on lock screen.
-    // audio 'play'/'pause' events keep the store in sync without interfering with
-    // iOS audio session management.
-    useEffect(() => {
-        if (!('mediaSession' in navigator)) return;
-        const ms = navigator.mediaSession;
-        ms.setActionHandler('previoustrack', () => { usePlayer.getState().prev(); });
-        ms.setActionHandler('nexttrack',     () => { usePlayer.getState().next(); });
-        return () => {
-            ms.setActionHandler('previoustrack', null);
-            ms.setActionHandler('nexttrack',     null);
-        };
     }, []);
 
     useEffect(() => {
