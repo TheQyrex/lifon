@@ -36,6 +36,8 @@ export function LyricsModal() {
     const findAlbum = useCatalog((s) => s.findAlbum);
 
     const modalRef = useRef<HTMLDivElement>(null);
+    const glowRef1 = useRef<HTMLDivElement>(null);
+    const glowRef2 = useRef<HTMLDivElement>(null);
     const scrollerRef = useRef<HTMLDivElement>(null);
     const [dominant, setDominant] = useState<{ r: number; g: number; b: number }>({ r: 138, g: 43, b: 226 });
 
@@ -89,11 +91,11 @@ export function LyricsModal() {
         return () => { cancelled = true; };
     }, [cover, albumGlowColor]);
 
-    // Apply dominant color CSS var
+    // Apply dominant color directly to glow elements (avoids Safari CSS-variable-in-rgba issues)
     useEffect(() => {
-        const modal = modalRef.current;
-        if (!modal) return;
-        modal.style.setProperty('--wave-color', `${dominant.r}, ${dominant.g}, ${dominant.b}`);
+        const { r, g, b } = dominant;
+        if (glowRef1.current) glowRef1.current.style.background = `radial-gradient(circle, rgba(${r},${g},${b},0.55) 0%, transparent 70%)`;
+        if (glowRef2.current) glowRef2.current.style.background = `radial-gradient(circle, rgba(${r},${g},${b},0.22) 0%, transparent 70%)`;
     }, [dominant]);
 
     // Beat-sync background pulse
@@ -102,7 +104,7 @@ export function LyricsModal() {
         if (!modal || !visible || !isPlaying || visualizerOff) return;
 
         let raf = 0;
-        let rotation = 0, currentScale = 1, currentOpacity = 0.2;
+        let rotation = 0, currentScale = 1, currentOpacity = 0.55;
         let kickPower = 0, lastBass = 0, currentHue = 0;
 
         function tick() {
@@ -127,11 +129,11 @@ export function LyricsModal() {
             let targetScale: number, targetOpacity: number;
             if (kickPower > 0) {
                 targetScale = 2.5 + Math.random() * 0.5;
-                targetOpacity = 0.6 + Math.random() * 0.3;
+                targetOpacity = 0.75 + Math.random() * 0.2;
                 kickPower -= 0.08;
             } else {
                 targetScale = 1 + bassI * 1.5;
-                targetOpacity = 0.15 + bassI * 0.3;
+                targetOpacity = 0.35 + bassI * 0.5;
             }
 
             currentScale   += (targetScale - currentScale)     * 0.85;
@@ -140,22 +142,26 @@ export function LyricsModal() {
 
             if (modal) {
                 modal.style.setProperty('--wave-scale',    String(currentScale));
-                modal.style.setProperty('--wave-opacity',  String(currentOpacity));
-                modal.style.setProperty('--wave-color',    `${c.r}, ${c.g}, ${c.b}`);
                 modal.style.setProperty('--wave-rotation', `${rotation}deg`);
                 const coverPulse = 1 + bassI * 0.04 + kickPower * 0.02;
                 modal.style.setProperty('--cover-pulse', coverPulse.toFixed(3));
             }
+            if (glowRef1.current) glowRef1.current.style.background = `radial-gradient(circle, rgba(${c.r},${c.g},${c.b},${currentOpacity.toFixed(3)}) 0%, transparent 70%)`;
+            if (glowRef2.current) glowRef2.current.style.background = `radial-gradient(circle, rgba(${c.r},${c.g},${c.b},${(currentOpacity * 0.4).toFixed(3)}) 0%, transparent 70%)`;
             raf = requestAnimationFrame(tick);
         }
         tick();
         return () => {
             cancelAnimationFrame(raf);
             if (modal) {
-                modal.style.setProperty('--cover-pulse', '1');
-                modal.style.setProperty('--wave-scale', '1');
-                modal.style.setProperty('--wave-opacity', '0.08');
+                modal.style.removeProperty('--cover-pulse');
+                modal.style.removeProperty('--wave-scale');
+                modal.style.removeProperty('--wave-rotation');
             }
+            // Restore static glow color
+            const { r, g, b } = dominant;
+            if (glowRef1.current) glowRef1.current.style.background = `radial-gradient(circle, rgba(${r},${g},${b},0.55) 0%, transparent 70%)`;
+            if (glowRef2.current) glowRef2.current.style.background = `radial-gradient(circle, rgba(${r},${g},${b},0.22) 0%, transparent 70%)`;
         };
     }, [visible, isPlaying, visualizerOff, dominant]);
 
@@ -201,6 +207,8 @@ export function LyricsModal() {
             onTouchStart={onSwipeTouchStart}
             onTouchEnd={onSwipeTouchEnd}
         >
+            <div ref={glowRef1} className="lyrics-glow-1" aria-hidden="true" />
+            <div ref={glowRef2} className="lyrics-glow-2" aria-hidden="true" />
             <div className="lyrics-content">
 
                 {/* ── Mobile top bar ── */}
