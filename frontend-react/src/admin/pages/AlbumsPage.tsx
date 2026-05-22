@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, ApiException } from '@/lib/api';
 import { toAbsoluteAsset } from '@/lib/assets';
+import { useCatalog } from '@/store/catalog';
 import { Card, Button, Field, Input, Flash } from '../ui';
 
 interface AdminTrack {
@@ -25,6 +26,7 @@ interface AdminAlbum {
     cover_url: string | null;
     cover: string | null;
     sort_order: number;
+    glow_color: string | null;
     tracks: AdminTrack[];
 }
 
@@ -42,6 +44,7 @@ export function AlbumsPage() {
                 ...a,
                 cover: toAbsoluteAsset(a.cover ?? a.cover_url),
                 cover_url: toAbsoluteAsset(a.cover_url ?? a.cover),
+                glow_color: a.glow_color ?? null,
                 tracks: a.tracks.map((t) => ({
                     ...t,
                     audio_url: toAbsoluteAsset(t.audio_url),
@@ -203,12 +206,14 @@ function AlbumEditor({ album, onChange, onDelete, setFlash }: EditorProps) {
     const [year, setYear] = useState(album.year);
     const [coverKey, setCoverKey] = useState<string | null>(album.cover_key);
     const [coverUrl, setCoverUrl] = useState<string | null>(album.cover ?? album.cover_url);
+    const [glowColor, setGlowColor] = useState<string | null>(album.glow_color);
     const [busy, setBusy] = useState(false);
 
     useEffect(() => {
         setTitle(album.title); setYear(album.year);
         setCoverKey(album.cover_key); setCoverUrl(album.cover ?? album.cover_url);
-    }, [album.id, album.title, album.year, album.cover_key, album.cover, album.cover_url]);
+        setGlowColor(album.glow_color);
+    }, [album.id, album.title, album.year, album.cover_key, album.cover, album.cover_url, album.glow_color]);
 
     async function save() {
         setBusy(true);
@@ -218,8 +223,11 @@ function AlbumEditor({ album, onChange, onDelete, setFlash }: EditorProps) {
                 year: year.trim(),
                 cover_key: coverKey,
                 sort_order: album.sort_order,
+                glow_color: glowColor || null,
             });
             setFlash({ kind: 'success', text: 'Альбом сохранён' });
+            // Refresh public catalog so glow color applies immediately in LyricsModal
+            void useCatalog.getState().load();
             await onChange();
         } catch (err) {
             setFlash({ kind: 'error', text: err instanceof ApiException ? err.message : 'Ошибка' });
@@ -274,6 +282,27 @@ function AlbumEditor({ album, onChange, onDelete, setFlash }: EditorProps) {
                                 <Input value={year} onChange={(e) => setYear(e.target.value)} maxLength={16} placeholder="не указан" />
                                 {year && (
                                     <Button variant="ghost" size="sm" onClick={() => setYear('')} title="Убрать год">×</Button>
+                                )}
+                            </div>
+                        </Field>
+                        <Field label="Цвет свечения" hint="оставь пустым для авто">
+                            <div className="flex gap-2 items-center">
+                                <input
+                                    type="color"
+                                    value={glowColor ?? '#8b2be2'}
+                                    onChange={(e) => setGlowColor(e.target.value)}
+                                    className="w-10 h-9 rounded-lg cursor-pointer border border-white/10 bg-transparent p-0.5"
+                                    style={{ colorScheme: 'dark' }}
+                                />
+                                <Input
+                                    value={glowColor ?? ''}
+                                    onChange={(e) => setGlowColor(e.target.value || null)}
+                                    maxLength={7}
+                                    placeholder="#8b2be2"
+                                    className="font-mono w-28"
+                                />
+                                {glowColor && (
+                                    <Button variant="ghost" size="sm" onClick={() => setGlowColor(null)} title="Убрать цвет">×</Button>
                                 )}
                             </div>
                         </Field>

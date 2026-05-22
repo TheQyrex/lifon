@@ -16,6 +16,7 @@ import { Player } from '@/components/Player';
 import { LyricsModal } from '@/components/LyricsModal';
 import { Broadcasts } from '@/components/Broadcasts';
 import { Snow } from '@/components/Snow';
+import { AchievementPopup } from '@/components/AchievementPopup';
 import { LinkTelegramScreen } from '@/screens/LinkTelegramScreen';
 import { AdminGuard } from '@/admin/AdminGuard';
 import { AdminShell } from '@/admin/AdminShell';
@@ -27,6 +28,7 @@ import { BroadcastsPage } from '@/admin/pages/BroadcastsPage';
 import { AlbumsPage } from '@/admin/pages/AlbumsPage';
 import { UploadsPage } from '@/admin/pages/UploadsPage';
 import { SupportersPage } from '@/admin/pages/SupportersPage';
+import { AchievementsPage } from '@/admin/pages/AchievementsPage';
 import { useAuth } from '@/store/auth';
 import { useLikes } from '@/store/likes';
 import { usePlayer } from '@/store/player';
@@ -35,21 +37,28 @@ import { useBroadcasts } from '@/store/broadcasts';
 import { useCatalog } from '@/store/catalog';
 import { useUi } from '@/store/ui';
 import { useLive } from '@/store/live';
+import { useAchievements } from '@/store/achievements';
 
 export default function App() {
     const { user, ready, bootstrap } = useAuth();
     const loadLikes = useLikes((s) => s.load);
     const resetLikes = useLikes((s) => s.reset);
-    const currentTrackId = usePlayer((s) => s.currentTrack?.id ?? null);
+    const currentTrack = usePlayer((s) => s.currentTrack);
+    const currentTrackId = currentTrack?.id ?? null;
     const isPlaying = usePlayer((s) => s.isPlaying);
+    const albumEnded = usePlayer((s) => s.albumEnded);
+    const clearAlbumEnded = usePlayer((s) => s._clearAlbumEnded);
+    const playFn = usePlayer((s) => s.play);
     const loadLyricsFor = useLyrics((s) => s.loadFor);
     const loadBroadcasts = useBroadcasts((s) => s.load);
     const loadCatalog = useCatalog((s) => s.load);
+    const albums = useCatalog((s) => s.albums);
     const maintenance = useCatalog((s) => s.maintenance);
     const disclaimerAccepted = useUi((s) => s.disclaimerAccepted);
     const showAuth = useUi((s) => s.showAuth);
     const sendHeartbeat = useLive((s) => s.sendHeartbeat);
     const fetchLive = useLive((s) => s.fetchAll);
+    const loadAchievements = useAchievements((s) => s.load);
 
     useEffect(() => {
         bootstrap();
@@ -88,6 +97,25 @@ export default function App() {
         return () => clearInterval(id);
     }, [user, fetchLive]);
 
+    // Album auto-advance: when the last track ends naturally, start the next album (circular)
+    useEffect(() => {
+        if (!albumEnded || !currentTrack || albums.length === 0) return;
+        clearAlbumEnded();
+        const albumIdx = albums.findIndex((a) => a.id === currentTrack.album_id);
+        if (albumIdx < 0) return;
+        const nextAlbum = albums[(albumIdx + 1) % albums.length];
+        if (!nextAlbum || nextAlbum.tracks.length === 0) return;
+        playFn(nextAlbum.tracks[0], nextAlbum.tracks, nextAlbum.cover ?? null);
+    }, [albumEnded, currentTrack, albums, clearAlbumEnded, playFn]);
+
+    // Load achievement notifications on login and periodically
+    useEffect(() => {
+        if (!user) return;
+        void loadAchievements();
+        const id = setInterval(() => void loadAchievements(), 60_000);
+        return () => clearInterval(id);
+    }, [user, loadAchievements]);
+
     if (!ready) {
         return <div className="app" />;
     }
@@ -112,7 +140,7 @@ export default function App() {
     }
 
     // Мигрированные пользователи без TG обязаны привязать аккаунт перед входом
-    if (user.require_telegram && !user.telegram_id) {
+    if (!user.is_admin && user.require_telegram && !user.telegram_id) {
         return <div className="app"><LinkTelegramScreen /></div>;
     }
 
@@ -134,6 +162,7 @@ export default function App() {
                 <Route path="albums"       element={<AlbumsPage />} />
                 <Route path="uploads"      element={<UploadsPage />} />
                 <Route path="supporters"   element={<SupportersPage />} />
+                <Route path="achievements" element={<AchievementsPage />} />
                 <Route path="*"            element={<AdminNotFound />} />
             </Route>
 
@@ -173,6 +202,7 @@ function MainShell() {
             <LyricsModal />
             <Broadcasts />
             <Snow />
+            <AchievementPopup />
             <AudioRoot />
         </div>
     );

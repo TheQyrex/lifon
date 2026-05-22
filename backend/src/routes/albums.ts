@@ -8,10 +8,10 @@ const albums = new Hono<AppEnv>();
 // once enough content has been migrated/added through the admin panel.
 albums.get('/', async (c) => {
     const albumRows = await c.env.DB.prepare(
-        `SELECT id, title, year, cover_key, sort_order
+        `SELECT id, title, year, cover_key, sort_order, glow_color
          FROM albums
          ORDER BY sort_order ASC, id ASC`,
-    ).all<{ id: number; title: string; year: string; cover_key: string | null; sort_order: number }>();
+    ).all<{ id: number; title: string; year: string; cover_key: string | null; sort_order: number; glow_color: string | null }>();
 
     if (albumRows.results.length === 0) return c.json({ ok: true, albums: [] });
 
@@ -44,6 +44,7 @@ albums.get('/', async (c) => {
         cover: publicUrl(c.env, a.cover_key),
         cover_url: publicUrl(c.env, a.cover_key),
         sort_order: a.sort_order,
+        glow_color: a.glow_color ?? null,
         tracks: (byAlbum.get(a.id) ?? []).map(t => ({
             id: t.id,
             title: t.title,

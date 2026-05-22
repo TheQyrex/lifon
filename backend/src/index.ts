@@ -11,6 +11,7 @@ import notifications from './routes/notifications';
 import albums from './routes/albums';
 import admin from './routes/admin';
 import media from './routes/media';
+import achievements from './routes/achievements';
 import { maintenanceGate } from './lib/maintenance';
 import { rateLimitMiddleware } from './lib/ratelimit';
 
@@ -96,6 +97,7 @@ app.route('/stats', stats);
 app.route('/profile', profile);
 app.route('/notification', notifications);
 app.route('/albums', albums);
+app.route('/achievements', achievements);
 app.route('/admin', admin);
 app.route('/media', media);
 

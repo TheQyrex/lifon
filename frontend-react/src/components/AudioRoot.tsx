@@ -4,6 +4,7 @@ import { resumeAudioContext } from '@/lib/visualizer';
 import { usePlayer } from '@/store/player';
 import { api, getToken } from '@/lib/api';
 import { API_BASE } from '@/lib/config';
+import { useAchievements } from '@/store/achievements';
 
 /**
  * Скрытый <audio>, прибитый к глобальному store. Один на всё приложение.
@@ -15,11 +16,13 @@ export function AudioRoot() {
     const currentTrack = usePlayer(s => s.currentTrack);
     const cover = usePlayer(s => s.cover);
 
-    // Записываем прослушивание когда трек меняется
+    // Записываем прослушивание когда трек меняется, потом проверяем ачивки
     useEffect(() => {
         const prev = listenRef.current;
         if (prev) {
-            api.post('/listens', { track_id: prev.trackId, duration_ms: Date.now() - prev.startMs }).catch(() => {});
+            api.post('/listens', { track_id: prev.trackId, duration_ms: Date.now() - prev.startMs })
+                .then(() => useAchievements.getState().load())
+                .catch(() => {});
         }
         listenRef.current = currentTrackId !== null ? { trackId: currentTrackId, startMs: Date.now() } : null;
     }, [currentTrackId]);

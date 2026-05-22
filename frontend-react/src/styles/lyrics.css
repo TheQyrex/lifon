@@ -13,52 +13,43 @@
     transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
     --wave-scale: 1;
-    --wave-opacity: 0.08;
+    --wave-opacity: 0.55;
     --wave-color: 138, 43, 226;
     --wave-rotation: 0deg;
 }
 
-.lyrics-modal::before {
-    content: '';
+.lyrics-glow-1,
+.lyrics-glow-2 {
     position: absolute;
     top: 50%;
     left: 22.5%;
-    width: 500px;
-    height: 500px;
+    border-radius: 50%;
+    pointer-events: none;
+    transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 0;
+}
+
+.lyrics-glow-1 {
+    width: 700px;
+    height: 700px;
     transform: translate(-50%, -50%) scale(var(--wave-scale)) rotate(var(--wave-rotation));
-    background: radial-gradient(circle, rgba(var(--wave-color), var(--wave-opacity)) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(138,43,226,0.55) 0%, transparent 70%);
     filter: blur(80px);
-    opacity: 1;
-    z-index: 0;
     will-change: transform;
-    transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Второй слой - реагирует медленнее */
-.lyrics-modal::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 22.5%;
-    width: 600px;
-    height: 600px;
+.lyrics-glow-2 {
+    width: 900px;
+    height: 900px;
     transform: translate(-50%, -50%) scale(calc(var(--wave-scale) * 0.8)) rotate(calc(var(--wave-rotation) * -0.5));
-    background: radial-gradient(circle, rgba(var(--wave-color), calc(var(--wave-opacity) * 0.5)) 0%, transparent 70%);
-    filter: blur(100px);
-    opacity: 1;
-    z-index: 0;
+    background: radial-gradient(circle, rgba(138,43,226,0.22) 0%, transparent 70%);
+    filter: blur(120px);
     will-change: transform;
-    transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.lyrics-modal.lyrics-hidden::before,
-.lyrics-modal.lyrics-hidden::after {
+.lyrics-modal.lyrics-hidden .lyrics-glow-1,
+.lyrics-modal.lyrics-hidden .lyrics-glow-2 {
     left: 50%;
-}
-
-.lyrics-modal.visualizer-off::before,
-.lyrics-modal.visualizer-off::after {
-    display: none;
 }
 
 @keyframes floatShape {
@@ -215,9 +206,9 @@
     height: 100%;
     border-radius: 16px;
     object-fit: cover;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 50px rgba(var(--wave-color), 0.7), 0 0 120px rgba(var(--wave-color), 0.35);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     transform: scale(var(--cover-pulse, 1));
-    transition: transform 0.08s linear, box-shadow 1s ease;
+    transition: transform 0.08s linear;
     will-change: transform;
 }
 
@@ -561,8 +552,8 @@
     }
 
     /* ── Visualizer blob centered ── */
-    .lyrics-modal::before,
-    .lyrics-modal::after {
+    .lyrics-glow-1,
+    .lyrics-glow-2 {
         left: 50%;
     }
 
@@ -677,7 +668,7 @@
 
     /* Limit shadow so it doesn't get clipped by lyrics-content: overflow:hidden */
     .lyrics-cover {
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 35px rgba(var(--wave-color), 0.4);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
     }
 
     .lyrics-cover-mobile-wrap .lyrics-cover {

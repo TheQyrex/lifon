@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { AppEnv } from '../env';
 import { requireAuth } from '../lib/auth';
 import { validateDurationMs, validateTrackId, validationErrorResponse } from '../lib/validation';
+import { checkAchievements } from '../lib/checkAchievements';
 
 const listens = new Hono<AppEnv>();
 
@@ -85,6 +86,8 @@ listens.post('/', async (c) => {
     await c.env.DB.prepare(
         'INSERT INTO listens (user_id, track_id, duration_ms) VALUES (?, ?, ?)',
     ).bind(user.id, trackId, durationMs).run();
+
+    void checkAchievements(c.env.DB, user.id, 'listen');
 
     return c.json({ ok: true, recorded: true });
 });

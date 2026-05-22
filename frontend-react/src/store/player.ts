@@ -15,12 +15,14 @@ interface PlayerState {
     isShuffled: boolean;
     isRepeating: boolean;
     cover: string | null; // обложка для отображения в плеере (берётся из альбома)
+    albumEnded: boolean;  // true когда последний трек альбома завершился — сигнал для авто-перехода
 
     // internal setters used by AudioRoot to react to audio events
     _setTime: (t: number) => void;
     _setDuration: (d: number) => void;
     _setIsPlaying: (p: boolean) => void;
     _onEnded: () => void;
+    _clearAlbumEnded: () => void;
 
     play: (track: Track, playlist: Track[], cover?: string | null) => void;
     togglePlay: () => void;
@@ -48,17 +50,24 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     isShuffled: false,
     isRepeating: false,
     cover: null,
+    albumEnded: false,
 
     _setTime: (t) => set({ currentTime: t }),
     _setDuration: (d) => set({ duration: d }),
     _setIsPlaying: (p) => set({ isPlaying: p }),
+    _clearAlbumEnded: () => set({ albumEnded: false }),
 
     _onEnded: () => {
-        const { isRepeating, next } = get();
+        const { isRepeating, isShuffled, playlistIndex, playlist, next } = get();
         const a = audio();
         if (isRepeating && a) {
             a.currentTime = 0;
             a.play().catch(() => {});
+            return;
+        }
+        // Last track of the album ended naturally → signal for cross-album auto-advance
+        if (!isShuffled && playlistIndex === playlist.length - 1) {
+            set({ isPlaying: false, albumEnded: true });
             return;
         }
         next();

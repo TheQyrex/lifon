@@ -9,6 +9,7 @@ import adminUploads from './uploads';
 import adminMaintenance from './maintenance';
 import adminSupporters from './supporters';
 import adminUsers from './users';
+import adminAchievements from './achievements';
 
 const admin = new Hono<AppEnv>();
 
@@ -30,5 +31,6 @@ admin.route('/uploads', adminUploads);
 admin.route('/maintenance', adminMaintenance);
 admin.route('/supporters', adminSupporters);
 admin.route('/users', adminUsers);
+admin.route('/achievements', adminAchievements);
 
 export default admin;

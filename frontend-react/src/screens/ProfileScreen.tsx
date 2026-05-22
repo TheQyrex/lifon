@@ -5,6 +5,7 @@ import { usePlayer } from '@/store/player';
 import { useCatalog } from '@/store/catalog';
 import { api, ApiException } from '@/lib/api';
 import { toAbsoluteAsset } from '@/lib/assets';
+import type { Achievement } from '@/types/api';
 
 interface TopTrack {
     track_id: number;
@@ -39,8 +40,15 @@ export function ProfileScreen() {
 
     const [data, setData] = useState<ProfileResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [myAchievements, setMyAchievements] = useState<Achievement[]>([]);
 
     useEffect(() => { void refresh(); }, []);
+
+    useEffect(() => {
+        api.get<{ ok: true; achievements: Achievement[] }>('/achievements/my')
+            .then((r) => setMyAchievements(r.achievements))
+            .catch(() => {});
+    }, []);
 
     async function refresh() {
         try {
@@ -160,6 +168,29 @@ export function ProfileScreen() {
                 </div>
 
                 <button className="btn-logout" type="button" onClick={logout}>Выйти</button>
+
+                {myAchievements.length > 0 && (
+                    <div style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                        <h3 className="profile-section-heading">АЧИВКИ</h3>
+                        <div className="profile-achievements-grid">
+                            {myAchievements.map((a) => {
+                                const iconUrl = a.icon_url ? toAbsoluteAsset(a.icon_url) : null;
+                                return (
+                                    <div key={a.id} className="profile-achievement-card" title={a.description || a.name}>
+                                        <div className="profile-achievement-icon">
+                                            {iconUrl ? (
+                                                <img src={iconUrl} alt="" className="profile-achievement-img" />
+                                            ) : (
+                                                <span className="profile-achievement-emoji">🏆</span>
+                                            )}
+                                        </div>
+                                        <div className="profile-achievement-name">{a.name}</div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
