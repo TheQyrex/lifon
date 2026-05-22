@@ -13,44 +13,9 @@
     transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
     --wave-scale: 1;
-    --wave-opacity: 0.55;
-    --wave-color: 138, 43, 226;
     --wave-rotation: 0deg;
 }
 
-.lyrics-glow-1,
-.lyrics-glow-2 {
-    position: absolute;
-    top: 50%;
-    left: 22.5%;
-    border-radius: 50%;
-    pointer-events: none;
-    transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 0;
-}
-
-.lyrics-glow-1 {
-    width: 700px;
-    height: 700px;
-    transform: translate(-50%, -50%) scale(var(--wave-scale)) rotate(var(--wave-rotation));
-    background: radial-gradient(circle, rgba(138,43,226,0.55) 0%, transparent 70%);
-    filter: blur(80px);
-    will-change: transform;
-}
-
-.lyrics-glow-2 {
-    width: 900px;
-    height: 900px;
-    transform: translate(-50%, -50%) scale(calc(var(--wave-scale) * 0.8)) rotate(calc(var(--wave-rotation) * -0.5));
-    background: radial-gradient(circle, rgba(138,43,226,0.22) 0%, transparent 70%);
-    filter: blur(120px);
-    will-change: transform;
-}
-
-.lyrics-modal.lyrics-hidden .lyrics-glow-1,
-.lyrics-modal.lyrics-hidden .lyrics-glow-2 {
-    left: 50%;
-}
 
 @keyframes floatShape {
     0%, 100% {
@@ -551,11 +516,6 @@
         overflow: hidden;
     }
 
-    /* ── Visualizer blob centered ── */
-    .lyrics-glow-1,
-    .lyrics-glow-2 {
-        left: 50%;
-    }
 
     /* ── Desktop sections: hidden on mobile ── */
     .lyrics-left,
