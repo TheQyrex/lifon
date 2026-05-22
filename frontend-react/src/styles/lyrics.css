@@ -13,7 +13,7 @@
     transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
     --wave-scale: 1;
-    --wave-opacity: 0.08;
+    --wave-opacity: 0.18;
     --wave-color: 138, 43, 226;
     --wave-rotation: 0deg;
 }

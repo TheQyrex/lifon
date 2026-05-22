@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLyrics } from '@/store/lyrics';
 import { usePlayer } from '@/store/player';
+import { useCatalog } from '@/store/catalog';
 import { findActiveLine } from '@/lib/lrc';
 import { readFrequencyData, extractDominantColor, adjustHue, ensureAnalyser } from '@/lib/visualizer';
 import { formatTime } from '@/lib/format';
@@ -9,6 +10,16 @@ function avg(data: Uint8Array, start: number, end: number): number {
     let sum = 0;
     for (let i = start; i < end; i++) sum += data[i];
     return sum / (end - start);
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+    const clean = hex.replace('#', '');
+    if (clean.length !== 6) return null;
+    const r = parseInt(clean.slice(0, 2), 16);
+    const g = parseInt(clean.slice(2, 4), 16);
+    const b = parseInt(clean.slice(4, 6), 16);
+    if ([r, g, b].some(isNaN)) return null;
+    return { r, g, b };
 }
 
 export function LyricsModal() {
@@ -22,10 +33,15 @@ export function LyricsModal() {
     const prev = usePlayer((s) => s.prev);
     const next = usePlayer((s) => s.next);
     const seek = usePlayer((s) => s.seek);
+    const findAlbum = useCatalog((s) => s.findAlbum);
 
     const modalRef = useRef<HTMLDivElement>(null);
     const scrollerRef = useRef<HTMLDivElement>(null);
     const [dominant, setDominant] = useState<{ r: number; g: number; b: number }>({ r: 138, g: 43, b: 226 });
+
+    const albumGlowColor = currentTrack
+        ? (findAlbum(currentTrack.album_id)?.glow_color ?? null)
+        : null;
     // Mobile: false = cover/player view, true = full lyrics view
     const [expanded, setExpanded] = useState(false);
     const swipeTouchStartY = useRef<number>(0);
@@ -61,13 +77,17 @@ export function LyricsModal() {
         if (audioEl) ensureAnalyser(audioEl);
     }, [visible]);
 
-    // Dominant color from cover
+    // Dominant color: prefer album's configured glow_color, fall back to cover extraction
     useEffect(() => {
+        if (albumGlowColor) {
+            const rgb = hexToRgb(albumGlowColor);
+            if (rgb) { setDominant(rgb); return; }
+        }
         if (!cover) return;
         let cancelled = false;
         extractDominantColor(cover).then((c) => { if (!cancelled) setDominant(c); });
         return () => { cancelled = true; };
-    }, [cover]);
+    }, [cover, albumGlowColor]);
 
     // Apply dominant color CSS var
     useEffect(() => {

@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { AppEnv } from '../env';
 import { requireAuth } from '../lib/auth';
 import { validateTrackId, validationErrorResponse } from '../lib/validation';
+import { checkAchievements } from '../lib/checkAchievements';
 
 const likes = new Hono<AppEnv>();
 
@@ -25,9 +26,11 @@ likes.post('/', async (c) => {
         return validationErrorResponse(c, err);
     }
 
-    await c.env.DB.prepare(
+    const result = await c.env.DB.prepare(
         'INSERT INTO likes (user_id, track_id) VALUES (?, ?) ON CONFLICT DO NOTHING',
     ).bind(user.id, trackId).run();
+
+    if (result.meta.changes > 0) void checkAchievements(c.env.DB, user.id, 'like');
 
     return c.json({ ok: true });
 });

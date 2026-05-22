@@ -29,7 +29,30 @@ export interface Album {
     cover_url: string | null;
     cover_key: string | null;
     sort_order: number;
+    glow_color: string | null;
     tracks: Track[];
+}
+
+export interface Achievement {
+    id: number;
+    name: string;
+    description: string;
+    icon_key: string | null;
+    icon_url: string | null;
+    condition_type: 'listens_total' | 'unique_tracks' | 'likes_total' | 'manual';
+    condition_value: number;
+    earned_at?: number;
+}
+
+export interface AchievementNotification {
+    id: number;
+    achievement_id: number;
+    name: string;
+    description: string;
+    icon_key: string | null;
+    icon_url: string | null;
+    earned_at: number;
+    created_at: number;
 }
 
 export interface Supporter {

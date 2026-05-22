@@ -157,6 +157,109 @@ body.sidebar-collapsed .broadcast-bar { left: 80px; }
     display: block;
 }
 
+/* ── Achievement popup ── */
+.achievement-popup {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    z-index: 1200;
+    cursor: pointer;
+    animation: achievement-slide-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes achievement-slide-in {
+    from { opacity: 0; transform: translateX(110%); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.achievement-popup-inner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: linear-gradient(135deg, #1e1040, #2a1558);
+    border: 1px solid rgba(180, 120, 255, 0.35);
+    border-radius: 18px;
+    padding: 16px 18px;
+    max-width: 320px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(180, 120, 255, 0.1);
+    backdrop-filter: blur(12px);
+}
+
+.achievement-popup-icon {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: rgba(180, 120, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.achievement-popup-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.achievement-popup-emoji {
+    font-size: 26px;
+    line-height: 1;
+}
+
+.achievement-popup-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.achievement-popup-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #c084fc;
+    margin-bottom: 3px;
+}
+
+.achievement-popup-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.2;
+}
+
+.achievement-popup-desc {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.55);
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.achievement-popup-close {
+    background: transparent;
+    border: 0;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    align-self: flex-start;
+}
+.achievement-popup-close:hover { color: rgba(255, 255, 255, 0.8); }
+
+@media (max-width: 768px) {
+    .achievement-popup {
+        bottom: 120px;
+        right: 12px;
+        left: 12px;
+    }
+    .achievement-popup-inner { max-width: 100%; }
+}
+
 /* Notification bar body padding compensation */
 body.app-has-notification .app {
     padding-top: 44px;

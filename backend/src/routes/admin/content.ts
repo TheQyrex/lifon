@@ -12,10 +12,10 @@ const content = new Hono<AppEnv>();
 
 content.get('/albums', async (c) => {
     const albumRows = await c.env.DB.prepare(
-        `SELECT id, title, year, cover_key, sort_order
+        `SELECT id, title, year, cover_key, sort_order, glow_color
          FROM albums
          ORDER BY sort_order ASC, id ASC`,
-    ).all<{ id: number; title: string; year: string; cover_key: string | null; sort_order: number }>();
+    ).all<{ id: number; title: string; year: string; cover_key: string | null; sort_order: number; glow_color: string | null }>();
 
     const trackRows = await c.env.DB.prepare(
         `SELECT id, album_id, title, artist, duration, audio_key, cover_key, lrc, sort_order
@@ -50,6 +50,7 @@ content.get('/albums', async (c) => {
             cover_url: publicUrl(c.env, a.cover_key),
             cover: publicUrl(c.env, a.cover_key),
             sort_order: a.sort_order,
+            glow_color: a.glow_color ?? null,
             tracks: (byAlbum.get(a.id) ?? []).map(t => ({
                 id: t.id,
                 album_id: t.album_id,
@@ -136,31 +137,35 @@ content.put('/albums/:id', async (c) => {
     let year: string;
     let coverKey: string | null | undefined;
     let sortOrder: number | undefined;
+    let glowColor: string | null | undefined;
     try {
         const body = await c.req.json<{
             title?: unknown;
             year?: unknown;
             cover_key?: unknown;
             sort_order?: unknown;
+            glow_color?: unknown;
         }>();
         title = validateNonEmptyString('title', body.title, 200);
         year = validateOptionalString('year', body.year, 16) ?? '';
         coverKey = body.cover_key === undefined ? undefined : validateOptionalString('cover_key', body.cover_key, 300);
         sortOrder = body.sort_order === undefined ? undefined : Number(body.sort_order);
+        glowColor = body.glow_color === undefined ? undefined : validateOptionalString('glow_color', body.glow_color, 20);
     } catch (err) {
         return validationErrorResponse(c, err);
     }
 
-    const prev = await c.env.DB.prepare('SELECT cover_key, sort_order FROM albums WHERE id = ?')
-        .bind(id).first<{ cover_key: string | null; sort_order: number }>();
+    const prev = await c.env.DB.prepare('SELECT cover_key, sort_order, glow_color FROM albums WHERE id = ?')
+        .bind(id).first<{ cover_key: string | null; sort_order: number; glow_color: string | null }>();
     if (!prev) return c.json({ ok: false, error: 'not_found' }, 404);
 
     const nextCoverKey = coverKey === undefined ? prev.cover_key : coverKey;
     const nextSortOrder = Number.isFinite(sortOrder) ? Number(sortOrder) : prev.sort_order;
+    const nextGlowColor = glowColor === undefined ? prev.glow_color : glowColor;
 
     await c.env.DB.prepare(
-        `UPDATE albums SET title = ?, year = ?, cover_key = ?, sort_order = ? WHERE id = ?`,
-    ).bind(title, year, nextCoverKey, nextSortOrder, id).run();
+        `UPDATE albums SET title = ?, year = ?, cover_key = ?, sort_order = ?, glow_color = ? WHERE id = ?`,
+    ).bind(title, year, nextCoverKey, nextSortOrder, nextGlowColor, id).run();
 
     if (prev.cover_key && prev.cover_key !== nextCoverKey) {
         c.executionCtx.waitUntil(deleteFromR2(c.env, prev.cover_key));
