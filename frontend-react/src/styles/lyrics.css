@@ -53,6 +53,22 @@
     position: relative;
 }
 
+/* Ambient glow blob behind album cover */
+.lyrics-glow {
+    position: absolute;
+    left: -100px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 800px;
+    height: 800px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+    filter: blur(150px);
+    opacity: 0.55;
+    will-change: opacity, transform, filter;
+}
+
 /* Left Section - Cover and Info */
 .lyrics-left {
     width: 45%;
