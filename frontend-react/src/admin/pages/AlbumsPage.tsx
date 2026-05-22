@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, ApiException } from '@/lib/api';
 import { toAbsoluteAsset } from '@/lib/assets';
+import { useCatalog } from '@/store/catalog';
 import { Card, Button, Field, Input, Flash } from '../ui';
 
 interface AdminTrack {
@@ -225,6 +226,8 @@ function AlbumEditor({ album, onChange, onDelete, setFlash }: EditorProps) {
                 glow_color: glowColor || null,
             });
             setFlash({ kind: 'success', text: 'Альбом сохранён' });
+            // Refresh public catalog so glow color applies immediately in LyricsModal
+            void useCatalog.getState().load();
             await onChange();
         } catch (err) {
             setFlash({ kind: 'error', text: err instanceof ApiException ? err.message : 'Ошибка' });

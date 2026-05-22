@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api } from '@/lib/api';
+import { useAchievements } from './achievements';
 
 interface LikesState {
     liked: Set<number>;
@@ -33,7 +34,10 @@ export const useLikes = create<LikesState>((set, get) => ({
 
         try {
             if (wasLiked) await api.delete('/likes', { track_id: trackId });
-            else          await api.post('/likes',   { track_id: trackId });
+            else {
+                await api.post('/likes', { track_id: trackId });
+                void useAchievements.getState().load();
+            }
         } catch {
             const rollback = new Set(get().liked);
             if (wasLiked) rollback.add(trackId); else rollback.delete(trackId);

@@ -255,13 +255,20 @@ interface AwardButtonProps {
 
 function AwardButton({ achievementId, setFlash }: AwardButtonProps) {
     async function award() {
-        const input = prompt('ID пользователя:');
-        if (!input?.trim()) return;
-        const userId = parseInt(input.trim());
-        if (!Number.isInteger(userId) || userId <= 0) { setFlash({ kind: 'error', text: 'Неверный ID' }); return; }
+        const username = prompt('Ник пользователя:')?.trim();
+        if (!username) return;
         try {
-            const res = await api.post<{ ok: true; awarded: boolean }>(`/admin/achievements/${achievementId}/award`, { user_id: userId });
-            setFlash({ kind: 'success', text: res.awarded ? 'Ачивка выдана' : 'Уже была выдана' });
+            // Find user by username (exact match)
+            const search = await api.get<{ ok: true; users: { id: number; username: string }[] }>(
+                `/admin/users?q=${encodeURIComponent(username)}&limit=20`,
+            );
+            const found = search.users.find((u) => u.username.toLowerCase() === username.toLowerCase());
+            if (!found) {
+                setFlash({ kind: 'error', text: `Пользователь «${username}» не найден` });
+                return;
+            }
+            const res = await api.post<{ ok: true; awarded: boolean }>(`/admin/achievements/${achievementId}/award`, { user_id: found.id });
+            setFlash({ kind: 'success', text: res.awarded ? `Ачивка выдана ${found.username}` : `У ${found.username} уже есть эта ачивка` });
         } catch (err) {
             setFlash({ kind: 'error', text: err instanceof ApiException ? err.message : 'Ошибка' });
         }
