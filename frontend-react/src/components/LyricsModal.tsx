@@ -36,8 +36,6 @@ export function LyricsModal() {
     const findAlbum = useCatalog((s) => s.findAlbum);
 
     const modalRef = useRef<HTMLDivElement>(null);
-    const glowRef1 = useRef<HTMLDivElement>(null);
-    const glowRef2 = useRef<HTMLDivElement>(null);
     const scrollerRef = useRef<HTMLDivElement>(null);
     const [dominant, setDominant] = useState<{ r: number; g: number; b: number }>({ r: 138, g: 43, b: 226 });
 
@@ -91,11 +89,19 @@ export function LyricsModal() {
         return () => { cancelled = true; };
     }, [cover, albumGlowColor]);
 
-    // Apply dominant color directly to glow elements (avoids Safari CSS-variable-in-rgba issues)
+    // Paint glow directly on modal background — avoids all z-index/overflow issues
+    function applyStaticGlow(modal: HTMLDivElement, r: number, g: number, b: number) {
+        modal.style.background = [
+            `radial-gradient(ellipse 800px 900px at 22% 50%, rgba(${r},${g},${b},0.55) 0%, transparent 65%)`,
+            `radial-gradient(ellipse 500px 600px at 22% 50%, rgba(${r},${g},${b},0.35) 0%, transparent 50%)`,
+            'linear-gradient(180deg, #1A1A1F 0%, #111114 50%, #080809 100%)',
+        ].join(', ');
+    }
+
     useEffect(() => {
-        const { r, g, b } = dominant;
-        if (glowRef1.current) glowRef1.current.style.background = `radial-gradient(circle, rgba(${r},${g},${b},0.55) 0%, transparent 70%)`;
-        if (glowRef2.current) glowRef2.current.style.background = `radial-gradient(circle, rgba(${r},${g},${b},0.22) 0%, transparent 70%)`;
+        const modal = modalRef.current;
+        if (!modal) return;
+        applyStaticGlow(modal, dominant.r, dominant.g, dominant.b);
     }, [dominant]);
 
     // Beat-sync background pulse
@@ -141,13 +147,20 @@ export function LyricsModal() {
             rotation       += 2 + bassI * 8 + kickPower * 15;
 
             if (modal) {
-                modal.style.setProperty('--wave-scale',    String(currentScale));
-                modal.style.setProperty('--wave-rotation', `${rotation}deg`);
+                const op = currentOpacity.toFixed(3);
+                const op2 = (currentOpacity * 0.6).toFixed(3);
+                const sz1 = Math.round(800 + currentScale * 120);
+                const sz2 = Math.round(900 + currentScale * 150);
+                const sz3 = Math.round(500 + currentScale * 80);
+                const sz4 = Math.round(600 + currentScale * 100);
+                modal.style.background = [
+                    `radial-gradient(ellipse ${sz1}px ${sz2}px at 22% 50%, rgba(${c.r},${c.g},${c.b},${op}) 0%, transparent 65%)`,
+                    `radial-gradient(ellipse ${sz3}px ${sz4}px at 22% 50%, rgba(${c.r},${c.g},${c.b},${op2}) 0%, transparent 50%)`,
+                    'linear-gradient(180deg, #1A1A1F 0%, #111114 50%, #080809 100%)',
+                ].join(', ');
                 const coverPulse = 1 + bassI * 0.04 + kickPower * 0.02;
                 modal.style.setProperty('--cover-pulse', coverPulse.toFixed(3));
             }
-            if (glowRef1.current) glowRef1.current.style.background = `radial-gradient(circle, rgba(${c.r},${c.g},${c.b},${currentOpacity.toFixed(3)}) 0%, transparent 70%)`;
-            if (glowRef2.current) glowRef2.current.style.background = `radial-gradient(circle, rgba(${c.r},${c.g},${c.b},${(currentOpacity * 0.4).toFixed(3)}) 0%, transparent 70%)`;
             raf = requestAnimationFrame(tick);
         }
         tick();
@@ -155,13 +168,8 @@ export function LyricsModal() {
             cancelAnimationFrame(raf);
             if (modal) {
                 modal.style.removeProperty('--cover-pulse');
-                modal.style.removeProperty('--wave-scale');
-                modal.style.removeProperty('--wave-rotation');
+                applyStaticGlow(modal, dominant.r, dominant.g, dominant.b);
             }
-            // Restore static glow color
-            const { r, g, b } = dominant;
-            if (glowRef1.current) glowRef1.current.style.background = `radial-gradient(circle, rgba(${r},${g},${b},0.55) 0%, transparent 70%)`;
-            if (glowRef2.current) glowRef2.current.style.background = `radial-gradient(circle, rgba(${r},${g},${b},0.22) 0%, transparent 70%)`;
         };
     }, [visible, isPlaying, visualizerOff, dominant]);
 
@@ -207,8 +215,6 @@ export function LyricsModal() {
             onTouchStart={onSwipeTouchStart}
             onTouchEnd={onSwipeTouchEnd}
         >
-            <div ref={glowRef1} className="lyrics-glow-1" aria-hidden="true" />
-            <div ref={glowRef2} className="lyrics-glow-2" aria-hidden="true" />
             <div className="lyrics-content">
 
                 {/* ── Mobile top bar ── */}
