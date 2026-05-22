@@ -3,7 +3,7 @@ import { useLyrics } from '@/store/lyrics';
 import { usePlayer } from '@/store/player';
 import { useCatalog } from '@/store/catalog';
 import { findActiveLine } from '@/lib/lrc';
-import { readFrequencyData, extractDominantColor, ensureAnalyser } from '@/lib/visualizer';
+import { readFrequencyData, extractDominantColor, ensureAnalyser, resumeAudioContext } from '@/lib/visualizer';
 import { formatTime } from '@/lib/format';
 
 function avg(data: Uint8Array, start: number, end: number): number {
@@ -71,11 +71,13 @@ export function LyricsModal() {
     }, [visible]);
 
     // Init visualizer lazily when modal opens — skip on mobile so audio keeps working in background
+    // Also resume AudioContext if already suspended (e.g. modal opened while track is playing)
     useEffect(() => {
         if (!visible) return;
         if (window.matchMedia('(max-width: 768px)').matches) return;
         const audioEl = document.getElementById('audioPlayer') as HTMLAudioElement | null;
         if (audioEl) ensureAnalyser(audioEl);
+        resumeAudioContext();
     }, [visible]);
 
     // Dominant color: prefer album's configured glow_color, fall back to cover extraction
@@ -97,6 +99,13 @@ export function LyricsModal() {
         glow.style.background = `rgb(${dominant.r},${dominant.g},${dominant.b})`;
     }, [dominant]);
 
+    // Show/hide glow based on visualizer toggle
+    useEffect(() => {
+        const glow = glowRef.current;
+        if (!glow) return;
+        glow.style.display = visualizerOff ? 'none' : 'block';
+    }, [visualizerOff]);
+
     // Beat-sync glow pulse
     useEffect(() => {
         const modal = modalRef.current;
@@ -109,14 +118,20 @@ export function LyricsModal() {
 
         function tick() {
             const data = readFrequencyData();
-            if (!data) { raf = requestAnimationFrame(tick); return; }
 
-            const subBass = avg(data, 0, 8);
-            const kick    = avg(data, 8, 15);
-            const high    = avg(data, 100, 150);
-            const bass    = subBass * 0.6 + kick * 0.4;
-            const bassI   = bass / 255;
-            const highI   = high / 255;
+            let bassI = 0, highI = 0;
+            if (data) {
+                const subBass = avg(data, 0, 8);
+                const kick    = avg(data, 8, 15);
+                const high    = avg(data, 100, 150);
+                bassI = (subBass * 0.6 + kick * 0.4) / 255;
+                highI = high / 255;
+            } else {
+                // Analyser not available — gentle sine-wave fallback so glow still breathes
+                const t = performance.now() / 1000;
+                bassI = ((Math.sin(t * 1.4) + 1) / 2) * 0.4;
+                highI = ((Math.sin(t * 2.1) + 1) / 2) * 0.15;
+            }
 
             const targetHue = highI * 50 + bassI * 30;
             currentHue += (targetHue - currentHue) * 0.2;
@@ -135,7 +150,7 @@ export function LyricsModal() {
                 targetOpacity = 0.45 + bassI * 0.45;
             }
 
-            currentScale   += (targetScale - currentScale)   * 0.85;
+            currentScale   += (targetScale - currentScale)     * 0.85;
             currentOpacity += (targetOpacity - currentOpacity) * 0.9;
 
             if (glow) {
