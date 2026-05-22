@@ -54,7 +54,12 @@ adminAchievements.post('/', async (c) => {
         'INSERT INTO achievements (name, description, icon_key, condition_type, condition_value) VALUES (?, ?, ?, ?, ?) RETURNING id',
     ).bind(name, description, iconKey ?? null, conditionType, conditionValue).first<{ id: number }>();
 
-    return c.json({ ok: true, id: row?.id });
+    const newId = row?.id;
+    if (newId && conditionType !== 'manual') {
+        void retroactiveAward(c.env.DB, newId, conditionType, conditionValue);
+    }
+
+    return c.json({ ok: true, id: newId });
 });
 
 adminAchievements.put('/:id', async (c) => {
@@ -135,3 +140,35 @@ adminAchievements.post('/:id/award', async (c) => {
 });
 
 export default adminAchievements;
+
+// Award a newly-created achievement retroactively to all users who already meet the condition.
+// Runs fire-and-forget so the POST /admin/achievements response is immediate.
+async function retroactiveAward(
+    db: AppEnv['Bindings']['DB'],
+    achievementId: number,
+    conditionType: string,
+    conditionValue: number,
+): Promise<void> {
+    const statSubquery =
+        conditionType === 'listens_total'  ? 'SELECT user_id FROM listens GROUP BY user_id HAVING COUNT(*) >= ?' :
+        conditionType === 'unique_tracks'  ? 'SELECT user_id FROM listens GROUP BY user_id HAVING COUNT(DISTINCT track_id) >= ?' :
+        conditionType === 'likes_total'    ? 'SELECT user_id FROM likes GROUP BY user_id HAVING COUNT(*) >= ?' :
+        null;
+
+    if (!statSubquery) return;
+
+    await db.prepare(
+        `INSERT OR IGNORE INTO user_achievements (user_id, achievement_id) SELECT user_id, ? FROM (${statSubquery})`,
+    ).bind(achievementId, conditionValue).run();
+
+    await db.prepare(
+        `INSERT INTO achievement_notifications (user_id, achievement_id)
+         SELECT ua.user_id, ua.achievement_id
+         FROM user_achievements ua
+         WHERE ua.achievement_id = ?
+         AND NOT EXISTS (
+             SELECT 1 FROM achievement_notifications n
+             WHERE n.user_id = ua.user_id AND n.achievement_id = ua.achievement_id
+         )`,
+    ).bind(achievementId).run();
+}
