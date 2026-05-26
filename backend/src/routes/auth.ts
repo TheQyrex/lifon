@@ -220,8 +220,28 @@ auth.post('/telegram/complete', async (c) => {
     const existingTg = await c.env.DB.prepare('SELECT id FROM users WHERE telegram_id = ?').bind(telegramId).first();
     if (existingTg) return c.json({ ok: false, error: 'already_registered', message: 'Этот Telegram уже привязан к аккаунту' }, 409);
 
-    const taken = await c.env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(username).first();
-    if (taken) return c.json({ ok: false, error: 'username_taken', message: 'Это имя уже занято' }, 409);
+    const taken = await c.env.DB.prepare(
+        'SELECT id, password_iter, telegram_id FROM users WHERE username = ?',
+    ).bind(username).first<{ id: number; password_iter: number; telegram_id: number | null }>();
+
+    if (taken) {
+        // Если аккаунт мигрированный (password_iter=0 и telegram_id не установлен) —
+        // позволяем «забрать» его: привязываем TG и устанавливаем новый пароль.
+        if (taken.password_iter === 0 && taken.telegram_id === null) {
+            const maintenance = await getMaintenanceState(c.env.DB);
+            if (maintenance.enabled) {
+                return c.json({ ok: false, error: 'maintenance', message: maintenance.message }, 503);
+            }
+            const { hash: pwHash, salt, iterations } = await hashPassword(password);
+            await c.env.DB.prepare(
+                'UPDATE users SET telegram_id = ?, password_hash = ?, password_salt = ?, password_iter = ?, require_telegram = 0 WHERE id = ?',
+            ).bind(telegramId, pwHash, salt, iterations, taken.id).run();
+            await c.env.DB.prepare('UPDATE users SET last_seen_at = unixepoch() WHERE id = ?').bind(taken.id).run();
+            const token = await signJwt({ sub: taken.id, name: username, adm: 0 }, c.env.JWT_SECRET);
+            return c.json({ ok: true, token, user: { id: taken.id, username, is_admin: false }, claimed: true });
+        }
+        return c.json({ ok: false, error: 'username_taken', message: 'Это имя уже занято' }, 409);
+    }
 
     const maintenance = await getMaintenanceState(c.env.DB);
     if (maintenance.enabled) {
