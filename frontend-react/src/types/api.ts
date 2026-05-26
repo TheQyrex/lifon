@@ -30,6 +30,8 @@ export interface Album {
     cover_key: string | null;
     sort_order: number;
     glow_color: string | null;
+    glow_opacity: number | null;
+    glow_radius: number | null;
     tracks: Track[];
 }
 

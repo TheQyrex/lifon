@@ -27,6 +27,8 @@ interface AdminAlbum {
     cover: string | null;
     sort_order: number;
     glow_color: string | null;
+    glow_opacity: number | null;
+    glow_radius: number | null;
     tracks: AdminTrack[];
 }
 
@@ -45,6 +47,8 @@ export function AlbumsPage() {
                 cover: toAbsoluteAsset(a.cover ?? a.cover_url),
                 cover_url: toAbsoluteAsset(a.cover_url ?? a.cover),
                 glow_color: a.glow_color ?? null,
+                glow_opacity: a.glow_opacity ?? null,
+                glow_radius: a.glow_radius ?? null,
                 tracks: a.tracks.map((t) => ({
                     ...t,
                     audio_url: toAbsoluteAsset(t.audio_url),
@@ -207,13 +211,17 @@ function AlbumEditor({ album, onChange, onDelete, setFlash }: EditorProps) {
     const [coverKey, setCoverKey] = useState<string | null>(album.cover_key);
     const [coverUrl, setCoverUrl] = useState<string | null>(album.cover ?? album.cover_url);
     const [glowColor, setGlowColor] = useState<string | null>(album.glow_color);
+    const [glowOpacity, setGlowOpacity] = useState<number>(album.glow_opacity ?? 0.6);
+    const [glowRadius, setGlowRadius] = useState<number>(album.glow_radius ?? 1.0);
     const [busy, setBusy] = useState(false);
 
     useEffect(() => {
         setTitle(album.title); setYear(album.year);
         setCoverKey(album.cover_key); setCoverUrl(album.cover ?? album.cover_url);
         setGlowColor(album.glow_color);
-    }, [album.id, album.title, album.year, album.cover_key, album.cover, album.cover_url, album.glow_color]);
+        setGlowOpacity(album.glow_opacity ?? 0.6);
+        setGlowRadius(album.glow_radius ?? 1.0);
+    }, [album.id, album.title, album.year, album.cover_key, album.cover, album.cover_url, album.glow_color, album.glow_opacity, album.glow_radius]);
 
     async function save() {
         setBusy(true);
@@ -224,6 +232,8 @@ function AlbumEditor({ album, onChange, onDelete, setFlash }: EditorProps) {
                 cover_key: coverKey,
                 sort_order: album.sort_order,
                 glow_color: glowColor || null,
+                glow_opacity: glowOpacity,
+                glow_radius: glowRadius,
             });
             setFlash({ kind: 'success', text: 'Альбом сохранён' });
             // Refresh public catalog so glow color applies immediately in LyricsModal
@@ -304,6 +314,30 @@ function AlbumEditor({ album, onChange, onDelete, setFlash }: EditorProps) {
                                 {glowColor && (
                                     <Button variant="ghost" size="sm" onClick={() => setGlowColor(null)} title="Убрать цвет">×</Button>
                                 )}
+                            </div>
+                        </Field>
+                        <Field label="Яркость свечения" hint={`${Math.round(glowOpacity * 100)}% — насколько ярко светит`}>
+                            <div className="flex gap-2 items-center">
+                                <input
+                                    type="range" min="0.1" max="1.0" step="0.05"
+                                    value={glowOpacity}
+                                    onChange={(e) => setGlowOpacity(Number(e.target.value))}
+                                    className="flex-1 accent-[#8b2be2]"
+                                />
+                                <span className="text-sm text-white/50 w-10 text-right tabular-nums">{glowOpacity.toFixed(2)}</span>
+                                <Button variant="ghost" size="sm" onClick={() => setGlowOpacity(0.6)} title="Сброс">↺</Button>
+                            </div>
+                        </Field>
+                        <Field label="Радиус пульсации" hint={`×${glowRadius.toFixed(1)} — насколько сильно расширяется под бит`}>
+                            <div className="flex gap-2 items-center">
+                                <input
+                                    type="range" min="0" max="3.0" step="0.1"
+                                    value={glowRadius}
+                                    onChange={(e) => setGlowRadius(Number(e.target.value))}
+                                    className="flex-1 accent-[#8b2be2]"
+                                />
+                                <span className="text-sm text-white/50 w-10 text-right tabular-nums">{glowRadius.toFixed(1)}×</span>
+                                <Button variant="ghost" size="sm" onClick={() => setGlowRadius(1.0)} title="Сброс">↺</Button>
                             </div>
                         </Field>
                         <div className="flex gap-2">

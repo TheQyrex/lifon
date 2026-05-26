@@ -65,8 +65,14 @@
     pointer-events: none;
     z-index: 0;
     filter: blur(150px);
-    opacity: 0.55;
+    opacity: 0.6;
     will-change: opacity, transform, filter;
+    transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* When lyrics text is hidden the cover takes full width — center glow under it */
+.lyrics-modal.lyrics-hidden .lyrics-glow {
+    left: calc(50% - 400px);
 }
 
 /* Left Section - Cover and Info */
