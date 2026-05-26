@@ -52,6 +52,8 @@ function normalizeAlbum(a: Album): Album {
         cover: toAbsoluteAsset(a.cover ?? a.cover_url ?? null),
         cover_url: toAbsoluteAsset(a.cover_url ?? a.cover ?? null),
         glow_color: a.glow_color ?? null,
+        glow_opacity: a.glow_opacity ?? null,
+        glow_radius: a.glow_radius ?? null,
         tracks: (a.tracks || []).map((t) => ({
             ...t,
             album_id: t.album_id ?? a.id,

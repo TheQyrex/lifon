@@ -40,9 +40,10 @@ export function LyricsModal() {
     const scrollerRef = useRef<HTMLDivElement>(null);
     const [dominant, setDominant] = useState<{ r: number; g: number; b: number }>({ r: 138, g: 43, b: 226 });
 
-    const albumGlowColor = currentTrack
-        ? (findAlbum(currentTrack.album_id)?.glow_color ?? null)
-        : null;
+    const album = currentTrack ? findAlbum(currentTrack.album_id) : null;
+    const albumGlowColor   = album?.glow_color   ?? null;
+    const albumGlowOpacity = album?.glow_opacity  ?? 0.6;
+    const albumGlowRadius  = album?.glow_radius   ?? 1.0;
     // Mobile: false = cover/player view, true = full lyrics view
     const [expanded, setExpanded] = useState(false);
     const swipeTouchStartY = useRef<number>(0);
@@ -92,19 +93,21 @@ export function LyricsModal() {
         return () => { cancelled = true; };
     }, [cover, albumGlowColor]);
 
-    // Update glow colour when dominant changes (static, no animation)
+    // Update glow colour + static opacity when dominant/albumGlowOpacity change
     useEffect(() => {
         const glow = glowRef.current;
         if (!glow) return;
         glow.style.background = `rgb(${dominant.r},${dominant.g},${dominant.b})`;
-    }, [dominant]);
+        glow.style.opacity = albumGlowOpacity.toFixed(2);
+    }, [dominant, albumGlowOpacity]);
 
     // Show/hide glow based on visualizer toggle
     useEffect(() => {
         const glow = glowRef.current;
         if (!glow) return;
         glow.style.display = visualizerOff ? 'none' : 'block';
-    }, [visualizerOff]);
+        if (!visualizerOff) glow.style.opacity = albumGlowOpacity.toFixed(2);
+    }, [visualizerOff, albumGlowOpacity]);
 
     // Beat-sync glow pulse
     useEffect(() => {
@@ -113,7 +116,7 @@ export function LyricsModal() {
         if (!modal || !glow || !visible || !isPlaying || visualizerOff) return;
 
         let raf = 0;
-        let currentScale = 1, currentOpacity = 0.55;
+        let currentScale = 1, currentOpacity = albumGlowOpacity;
         let kickPower = 0, lastBass = 0, currentHue = 0;
 
         function tick() {
@@ -142,19 +145,20 @@ export function LyricsModal() {
 
             let targetScale: number, targetOpacity: number;
             if (kickPower > 0) {
-                targetScale = 2.5 + Math.random() * 0.5;
-                targetOpacity = 0.85 + Math.random() * 0.1;
+                // Kick: scale and opacity limited by radius/opacity settings
+                targetScale   = 1 + albumGlowRadius * (2.0 + Math.random() * 0.5);
+                targetOpacity = Math.min(1, albumGlowOpacity * 1.4 + Math.random() * 0.05);
                 kickPower -= 0.08;
             } else {
-                targetScale = 1 + bassI * 1.5;
-                targetOpacity = 0.45 + bassI * 0.45;
+                targetScale   = 1 + bassI * 1.5 * albumGlowRadius;
+                targetOpacity = albumGlowOpacity * (0.6 + bassI * 0.6);
             }
 
             currentScale   += (targetScale - currentScale)     * 0.85;
             currentOpacity += (targetOpacity - currentOpacity) * 0.9;
 
             if (glow) {
-                glow.style.opacity = currentOpacity.toFixed(3);
+                glow.style.opacity = Math.min(1, currentOpacity).toFixed(3);
                 glow.style.transform = `translateY(-50%) scale(${currentScale.toFixed(3)})`;
                 glow.style.filter = `blur(150px) hue-rotate(${Math.round(currentHue)}deg)`;
             }
@@ -169,12 +173,12 @@ export function LyricsModal() {
             cancelAnimationFrame(raf);
             if (modal) modal.style.removeProperty('--cover-pulse');
             if (glow) {
-                glow.style.opacity = '0.55';
+                glow.style.opacity = albumGlowOpacity.toFixed(2);
                 glow.style.transform = 'translateY(-50%) scale(1)';
                 glow.style.filter = 'blur(150px)';
             }
         };
-    }, [visible, isPlaying, visualizerOff, dominant]);
+    }, [visible, isPlaying, visualizerOff, dominant, albumGlowOpacity, albumGlowRadius]);
 
     // Auto-scroll active lyrics line into view
     useEffect(() => {
