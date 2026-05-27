@@ -6,12 +6,16 @@ const stats = new Hono<AppEnv>();
 stats.get('/', async (c) => {
     const since30d = Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60;
 
-    const [usersTotal, usersActive, listensTotal, listensRecent, likesTotal] = await Promise.all([
+    const [usersTotal, usersActive, listensTotal, listensRecent, likesTotal, platformRows] = await Promise.all([
         c.env.DB.prepare('SELECT COUNT(*) AS n FROM users').first<{ n: number }>(),
         c.env.DB.prepare('SELECT COUNT(*) AS n FROM users WHERE last_seen_at >= ?').bind(since30d).first<{ n: number }>(),
         c.env.DB.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(duration_ms), 0) AS ms FROM listens').first<{ n: number; ms: number }>(),
         c.env.DB.prepare('SELECT COUNT(*) AS n FROM listens WHERE created_at >= ?').bind(since30d).first<{ n: number }>(),
         c.env.DB.prepare('SELECT COUNT(*) AS n FROM likes').first<{ n: number }>(),
+        c.env.DB.prepare(
+            `SELECT COALESCE(platform, 'web') AS platform, COUNT(*) AS n
+             FROM listens GROUP BY COALESCE(platform, 'web')`
+        ).all<{ platform: string; n: number }>(),
     ]);
 
     const topTracks = await c.env.DB.prepare(
@@ -42,6 +46,9 @@ stats.get('/', async (c) => {
          LIMIT 30`,
     ).all<{ id: number; username: string; created_at: number; last_seen_at: number | null; is_admin: number }>();
 
+    const platformMap: Record<string, number> = {};
+    for (const r of platformRows.results) platformMap[r.platform] = r.n;
+
     return c.json({
         ok: true,
         totals: {
@@ -51,6 +58,11 @@ stats.get('/', async (c) => {
             listens_recent_30d: listensRecent?.n ?? 0,
             listen_ms: listensTotal?.ms ?? 0,
             likes: likesTotal?.n ?? 0,
+            listens_by_platform: {
+                web: platformMap['web'] ?? 0,
+                android: platformMap['android'] ?? 0,
+                ios: platformMap['ios'] ?? 0,
+            },
         },
         top_tracks: topTracks.results,
         top_liked: topLiked.results,

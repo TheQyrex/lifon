@@ -72,10 +72,13 @@ listens.post('/', async (c) => {
     const user = c.get('user')!;
     let trackId: number;
     let durationMs: number;
+    let platform: string;
     try {
-        const body = await c.req.json<{ track_id?: unknown; duration_ms?: unknown }>();
+        const body = await c.req.json<{ track_id?: unknown; duration_ms?: unknown; platform?: unknown }>();
         trackId = validateTrackId(body.track_id);
         durationMs = validateDurationMs(body.duration_ms);
+        const raw = typeof body.platform === 'string' ? body.platform : 'web';
+        platform = ['android', 'ios', 'web'].includes(raw) ? raw : 'web';
     } catch (err) {
         return validationErrorResponse(c, err);
     }
@@ -84,8 +87,8 @@ listens.post('/', async (c) => {
     if (durationMs < 1000) return c.json({ ok: true, recorded: false });
 
     await c.env.DB.prepare(
-        'INSERT INTO listens (user_id, track_id, duration_ms) VALUES (?, ?, ?)',
-    ).bind(user.id, trackId, durationMs).run();
+        'INSERT INTO listens (user_id, track_id, duration_ms, platform) VALUES (?, ?, ?, ?)',
+    ).bind(user.id, trackId, durationMs, platform).run();
 
     void checkAchievements(c.env.DB, user.id, 'listen');
 
