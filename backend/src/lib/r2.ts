@@ -26,9 +26,10 @@ export async function uploadToR2(
     file: File,
 ): Promise<UploadResult> {
     const spec = ALLOWED_KINDS[kind];
+    const declaredMime = normalizeDeclaredMime(kind, file.type, file.name);
 
-    if (!spec.mime.test(file.type)) {
-        throw new UploadError(415, `Недопустимый MIME-тип для ${kind}: ${file.type}`);
+    if (!spec.mime.test(declaredMime)) {
+        throw new UploadError(415, `Недопустимый MIME-тип для ${kind}: ${file.type || 'не указан'}`);
     }
     if (file.size <= 0 || file.size > spec.maxBytes) {
         throw new UploadError(413, `Файл слишком большой (${file.size} > ${spec.maxBytes})`);
@@ -37,20 +38,60 @@ export async function uploadToR2(
     // Сверяем magic bytes — Content-Type легко подделывается на клиенте
     const head = new Uint8Array(await file.slice(0, 32).arrayBuffer());
     const realMime = detectMime(head);
+    const contentMime = normalizeDetectedMime(kind, realMime, declaredMime, file.name);
     if (kind === 'lrc') {
         // LRC — это текст; magic byte нет, ограничиваемся MIME и размером
-    } else if (!realMime || !spec.mime.test(realMime)) {
+    } else if (!contentMime || !spec.mime.test(contentMime)) {
         throw new UploadError(415, `Содержимое файла не соответствует типу ${kind} (обнаружено: ${realMime || 'неизвестно'})`);
     }
 
-    const ext = extensionFor(file.type, file.name);
+    const storedMime = contentMime || declaredMime;
+    const ext = extensionFor(storedMime, file.name);
     const key = `${spec.prefix}/${randomId()}${ext}`;
 
     await env.MEDIA.put(key, file.stream(), {
-        httpMetadata: { contentType: realMime || file.type },
+        httpMetadata: { contentType: storedMime },
     });
 
     return { key, url: publicUrl(env, key) || '' };
+}
+
+function normalizeDeclaredMime(kind: UploadKind, mime: string, name: string): string {
+    const value = mime.toLowerCase().split(';', 1)[0].trim();
+    const ext = extensionFromName(name);
+
+    if (kind === 'audio') {
+        if (value === 'audio/x-m4a' || value === 'audio/m4a') return 'audio/mp4';
+        if (value === 'audio/mp3') return 'audio/mpeg';
+        if (value === 'audio/x-wav' || value === 'audio/wave') return 'audio/wav';
+        if (value === 'application/ogg') return 'audio/ogg';
+        if (ext === '.m4a' && (!value || value === 'application/octet-stream' || value === 'video/mp4')) {
+            return 'audio/mp4';
+        }
+    }
+
+    if (kind === 'lrc' && ext === '.lrc' && (!value || value === 'application/octet-stream')) {
+        return 'text/plain';
+    }
+
+    return value;
+}
+
+function normalizeDetectedMime(
+    kind: UploadKind,
+    realMime: string | null,
+    declaredMime: string,
+    name: string,
+): string | null {
+    if (
+        kind === 'audio' &&
+        realMime === 'video/mp4' &&
+        (declaredMime === 'audio/mp4' || extensionFromName(name) === '.m4a')
+    ) {
+        return 'audio/mp4';
+    }
+
+    return realMime;
 }
 
 /**
@@ -99,8 +140,11 @@ function detectMime(head: Uint8Array): string | null {
     // MP4/M4A/MOV: смещение 4..8 = "ftyp"
     if (b.length >= 12 && b[4] === 0x66 && b[5] === 0x74 && b[6] === 0x79 && b[7] === 0x70) {
         const brand = String.fromCharCode(b[8], b[9], b[10], b[11]);
-        // MOV — Apple QuickTime; mp4 brands начинаются на iso/mp4/M4V
+        // MP4 family containers are ambiguous by magic bytes alone.
+        // M4A/M4B are audio brands; generic iso/mp4/mp42 can be audio-only too,
+        // so upload validation may normalize them using the declared type/name.
         if (brand.startsWith('qt')) return 'video/quicktime';
+        if (brand.startsWith('M4A') || brand.startsWith('M4B')) return 'audio/mp4';
         if (brand.startsWith('M4V') || brand.startsWith('mp4') || brand.startsWith('iso')) return 'video/mp4';
         return 'audio/mp4';
     }
@@ -152,13 +196,17 @@ function extensionFor(mime: string, name: string): string {
         'text/plain': '.lrc',
     };
     if (map[mime]) return map[mime];
-    const dot = name.lastIndexOf('.');
-    return dot >= 0 ? name.slice(dot).toLowerCase().replace(/[^.a-z0-9]/g, '') : '';
+    return extensionFromName(name);
 }
 
 function randomId(): string {
     const bytes = crypto.getRandomValues(new Uint8Array(16));
     return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function extensionFromName(name: string): string {
+    const dot = name.lastIndexOf('.');
+    return dot >= 0 ? name.slice(dot).toLowerCase().replace(/[^.a-z0-9]/g, '') : '';
 }
 
 function isBundledFrontendAsset(key: string): boolean {

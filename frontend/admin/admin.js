@@ -798,7 +798,7 @@
                 class: `admin-track-duration-chip${durationValue ? '' : ' empty'}`,
                 text: durationValue ? `Длительность: ${durationValue}` : 'Длительность определится после загрузки аудио',
             });
-            const audioInput = el('input', { type: 'file', accept: 'audio/*', style: { display: 'none' } });
+            const audioInput = el('input', { type: 'file', accept: 'audio/*,.m4a,audio/mp4', style: { display: 'none' } });
             const lrcInput = el('input', { type: 'file', accept: '.lrc,text/plain', style: { display: 'none' } });
             const audioLabel = el('span', { class: 'admin-hint', text: track?.audio_key ? 'Аудио уже загружено' : '' });
             const lrcLabel = el('span', { class: 'admin-hint', text: track?.lrc ? 'Текст загружен' : '' });

@@ -29,7 +29,9 @@ uploads.post('/', async (c) => {
         const { key, url } = await uploadToR2(c.env, kindRaw, file);
         return c.json({ ok: true, key, url });
     } catch (err) {
-        if (err instanceof UploadError) return c.json({ ok: false, error: err.message }, err.status as any);
+        if (err instanceof UploadError) {
+            return c.json({ ok: false, error: 'upload_rejected', message: err.message }, err.status as any);
+        }
         throw err;
     }
 });

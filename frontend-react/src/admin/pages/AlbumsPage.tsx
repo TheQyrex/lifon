@@ -592,7 +592,7 @@ function TrackForm({ album, track, onClose, onSaved, setFlash }: TrackFormProps)
                 <div className="flex items-center gap-3">
                     <label className="inline-flex items-center gap-2 cursor-pointer text-sm shrink-0">
                         <span className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15">{audioUrl ? 'Заменить аудио' : 'Загрузить аудио'}</span>
-                        <input type="file" accept="audio/*" className="hidden"
+                        <input type="file" accept="audio/*,.m4a,audio/mp4" className="hidden"
                             onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadAudio(f); e.target.value = ''; }}
                         />
                     </label>
