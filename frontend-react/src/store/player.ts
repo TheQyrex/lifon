@@ -14,7 +14,7 @@ interface PlayerState {
     isMuted: boolean;
     isShuffled: boolean;
     isRepeating: boolean;
-    cover: string | null; // обложка для отображения в плеере (берётся из альбома)
+    cover: string | null; // обложка для отображения в плеере
     albumEnded: boolean;  // true когда последний трек альбома завершился — сигнал для авто-перехода
 
     // internal setters used by AudioRoot to react to audio events
@@ -79,7 +79,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
             currentTrack: track,
             playlist,
             playlistIndex: idx >= 0 ? idx : 0,
-            cover: cover ?? null,
+            cover: cover ?? track.cover_url ?? null,
             currentTime: 0,
         });
         const a = audio();
@@ -141,7 +141,8 @@ export const usePlayer = create<PlayerState>((set, get) => ({
         } else {
             nextIdx = (playlistIndex + 1) % playlist.length;
         }
-        play(playlist[nextIdx], playlist, cover);
+        const nextTrack = playlist[nextIdx];
+        play(nextTrack, playlist, nextTrack.cover_url ?? cover);
     },
 
     prev() {
@@ -153,7 +154,8 @@ export const usePlayer = create<PlayerState>((set, get) => ({
             if (a) { a.currentTime = 0; set({ currentTime: 0 }); return; }
         }
         const prevIdx = playlistIndex <= 0 ? playlist.length - 1 : playlistIndex - 1;
-        play(playlist[prevIdx], playlist, cover);
+        const prevTrack = playlist[prevIdx];
+        play(prevTrack, playlist, prevTrack.cover_url ?? cover);
     },
 
     seek(timeSec) {
