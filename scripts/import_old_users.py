@@ -3,11 +3,11 @@
 Импорт пользователей, лайков и прослушиваний из старой базы LifonMUSIC.
 
 Использование:
-  python3 scripts/import_old_users.py <путь_к_дампу.sql> [путь_к_db.sqlite]
+  python3 scripts/import_old_users.py <путь_к_дампу.sql|бд.xlsx> [путь_к_db.sqlite]
 
 Примеры:
   python3 scripts/import_old_users.py old_dump.sql
-  python3 scripts/import_old_users.py old_dump.sql /var/www/lifonmusic/data/db.sqlite
+  python3 scripts/import_old_users.py old_dump.sql /var/www/lifonmusic/backend/data/db.sqlite
 
 Пользователи импортируются с password_iter=0 (маркер «нет пароля»).
 Они смогут войти только через Telegram — при этом введут свой старый ник
@@ -18,11 +18,13 @@ import sqlite3
 import re
 import sys
 import os
+import zipfile
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
 
 # ── Defaults ────────────────────────────────────────────────────────────────
-DEFAULT_DB = "/var/www/lifonmusic/data/db.sqlite"
+DEFAULT_DB = "/var/www/lifonmusic/backend/data/db.sqlite"
 
 
 # ── Parsers ─────────────────────────────────────────────────────────────────
@@ -147,6 +149,156 @@ def parse_dump(dump_path: str):
     return users, likes, listens
 
 
+def _xlsx_col_to_idx(cell_ref: str) -> int:
+    letters = ''.join(ch for ch in cell_ref if ch.isalpha()).upper()
+    idx = 0
+    for ch in letters:
+        idx = idx * 26 + (ord(ch) - ord('A') + 1)
+    return idx - 1
+
+
+def _xlsx_text(node: ET.Element, ns: dict[str, str]) -> str:
+    return ''.join(t.text or '' for t in node.findall('.//main:t', ns))
+
+
+def _read_xlsx_rows(path: str) -> list[list[object | None]]:
+    ns = {
+        'main': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main',
+        'rel': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
+        'pkgrel': 'http://schemas.openxmlformats.org/package/2006/relationships',
+    }
+
+    with zipfile.ZipFile(path) as zf:
+        shared: list[str] = []
+        if 'xl/sharedStrings.xml' in zf.namelist():
+            root = ET.fromstring(zf.read('xl/sharedStrings.xml'))
+            shared = [_xlsx_text(si, ns) for si in root.findall('main:si', ns)]
+
+        wb = ET.fromstring(zf.read('xl/workbook.xml'))
+        first_sheet = wb.find('main:sheets/main:sheet', ns)
+        if first_sheet is None:
+            return []
+        rel_id = first_sheet.attrib[f'{{{ns["rel"]}}}id']
+
+        rels = ET.fromstring(zf.read('xl/_rels/workbook.xml.rels'))
+        target = None
+        for rel in rels.findall('pkgrel:Relationship', ns):
+            if rel.attrib.get('Id') == rel_id:
+                target = rel.attrib.get('Target')
+                break
+        if not target:
+            return []
+
+        sheet_path = 'xl/' + target.lstrip('/')
+        sheet = ET.fromstring(zf.read(sheet_path))
+
+        rows: list[list[object | None]] = []
+        for row_node in sheet.findall('.//main:sheetData/main:row', ns):
+            row: list[object | None] = []
+            for c in row_node.findall('main:c', ns):
+                ref = c.attrib.get('r', '')
+                col_idx = _xlsx_col_to_idx(ref)
+                while len(row) <= col_idx:
+                    row.append(None)
+
+                cell_type = c.attrib.get('t')
+                value_node = c.find('main:v', ns)
+                if cell_type == 'inlineStr':
+                    inline = c.find('main:is', ns)
+                    value: object | None = _xlsx_text(inline, ns) if inline is not None else None
+                elif value_node is None:
+                    value = None
+                elif cell_type == 's':
+                    value = shared[int(value_node.text or '0')]
+                else:
+                    raw = value_node.text or ''
+                    try:
+                        value = int(raw)
+                    except ValueError:
+                        try:
+                            value = float(raw)
+                        except ValueError:
+                            value = raw
+
+                row[col_idx] = value
+            rows.append(row)
+
+        return rows
+
+
+def _find_header(headers: list[object | None], expected: list[str]) -> int:
+    normalized = [str(v).strip() if v is not None else '' for v in headers]
+    for start in range(0, len(normalized) - len(expected) + 1):
+        if normalized[start:start + len(expected)] == expected:
+            return start
+    raise ValueError(f"Не найдены колонки: {expected}")
+
+
+def _cell(row: list[object | None], idx: int) -> object | None:
+    return row[idx] if idx < len(row) else None
+
+
+def parse_xlsx(xlsx_path: str):
+    rows = _read_xlsx_rows(xlsx_path)
+    if not rows:
+        return [], [], []
+
+    headers = rows[0]
+    user_start = _find_header(headers, ['id', 'username', 'pass_hash', 'created_at', 'avatar_url'])
+    like_start = _find_header(headers, ['user_id', 'track_id', 'created_at'])
+    listen_start = _find_header(headers, ['id', 'user_id', 'track_id', 'duration_ms', 'listened_at'])
+
+    users = []
+    likes = []
+    listens = []
+    now = int(datetime.now(timezone.utc).timestamp())
+
+    for row in rows[1:]:
+        old_id = _cell(row, user_start)
+        username = _cell(row, user_start + 1)
+        if old_id is not None and username:
+            created_raw = _cell(row, user_start + 3)
+            avatar_raw = _cell(row, user_start + 4)
+            avatar = str(avatar_raw) if avatar_raw and str(avatar_raw).upper() != 'NULL' else None
+            users.append({
+                'old_id': int(old_id),
+                'username': str(username),
+                'created_at': _iso_to_unix(str(created_raw)) if created_raw else now,
+                'avatar_url': avatar,
+            })
+
+        like_user = _cell(row, like_start)
+        like_track = _cell(row, like_start + 1)
+        if like_user is not None and like_track is not None:
+            created = _cell(row, like_start + 2)
+            likes.append({
+                'user_id': int(like_user),
+                'track_id': int(like_track),
+                'created_at': int(created) if created is not None else now,
+            })
+
+        listen_user = _cell(row, listen_start + 1)
+        listen_track = _cell(row, listen_start + 2)
+        duration = _cell(row, listen_start + 3)
+        if listen_user is not None and listen_track is not None and duration is not None:
+            listened_at = _cell(row, listen_start + 4)
+            listens.append({
+                'user_id': int(listen_user),
+                'track_id': int(listen_track),
+                'duration_ms': int(duration),
+                'created_at': int(listened_at) if listened_at is not None else now,
+            })
+
+    return users, likes, listens
+
+
+def parse_source(path: str):
+    ext = os.path.splitext(path)[1].lower()
+    if ext == '.xlsx':
+        return parse_xlsx(path)
+    return parse_dump(path)
+
+
 # ── Import ───────────────────────────────────────────────────────────────────
 
 def run_import(dump_path: str, db_path: str):
@@ -154,7 +306,7 @@ def run_import(dump_path: str, db_path: str):
     print(f"База:    {db_path}")
     print()
 
-    users, likes, listens = parse_dump(dump_path)
+    users, likes, listens = parse_source(dump_path)
     print(f"Распарсено: {len(users)} юзеров, {len(likes)} лайков, {len(listens)} прослушиваний")
     print()
 

@@ -20,13 +20,13 @@ export function validationErrorResponse(c: Context, err: unknown) {
     return c.json({ ok: false, error: 'bad_request' }, 400);
 }
 
-const USERNAME_RE = /^[a-z0-9._-]{3,24}$/;
+const USERNAME_RE = /^[\p{L}\p{N}._#-]{3,24}$/u;
 
 export function validateUsername(raw: unknown): string {
     if (typeof raw !== 'string') throw new ValidationError('username', 'Имя должно быть строкой');
     const value = raw.trim().toLowerCase();
     if (!USERNAME_RE.test(value)) {
-        throw new ValidationError('username', 'Имя: 3–24 символа, латиница/цифры/._-');
+        throw new ValidationError('username', 'Имя: 3–24 символа, буквы/цифры/._#-');
     }
     return value;
 }
