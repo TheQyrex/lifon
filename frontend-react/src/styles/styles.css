@@ -651,10 +651,16 @@ body.sidebar-collapsed .main-content {
     align-items: center;
     gap: 4px;
     padding: 4px;
+    margin-right: 14px;
     margin-bottom: 16px;
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.08);
+    vertical-align: middle;
+}
+
+#libraryScreen .screen-header input {
+    vertical-align: middle;
 }
 
 .library-tabs button {
@@ -1918,6 +1924,7 @@ body.sidebar-collapsed .main-content {
 
     .library-tabs {
         width: 100%;
+        margin-right: 0;
         margin-bottom: 12px;
     }
 
