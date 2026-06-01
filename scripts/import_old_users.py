@@ -84,10 +84,47 @@ def _split_values(row: str):
 
 def _iso_to_unix(s: str) -> int:
     try:
+        if str(s).strip().isdigit():
+            return int(s)
         dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
         return int(dt.timestamp())
     except Exception:
         return int(datetime.now(timezone.utc).timestamp())
+
+def _parse_insert(line: str):
+    m = re.match(
+        r'INSERT\s+INTO\s+"?([A-Za-z_][A-Za-z0-9_]*)"?\s*(?:\((.*?)\))?\s+VALUES\s*(\(.+\))\s*;?$',
+        line,
+        re.IGNORECASE,
+    )
+    if not m:
+        return None
+
+    table = m.group(1)
+    cols_raw = m.group(2)
+    values = _split_values(m.group(3))
+    columns = re.findall(r'"([^"]+)"|([A-Za-z_][A-Za-z0-9_]*)', cols_raw or '')
+    column_names = [(quoted or plain) for quoted, plain in columns] or None
+    return table, column_names, values
+
+def _row_dict(columns: list[str] | None, values: list[object], fallback: list[str]) -> dict[str, object | None]:
+    names = columns or fallback
+    return {name: values[idx] if idx < len(values) else None for idx, name in enumerate(names)}
+
+def _optional_unix(value: object | None) -> int | None:
+    if value is None:
+        return None
+    return _iso_to_unix(str(value))
+
+def _optional_int(value: object | None) -> int | None:
+    if value is None:
+        return None
+    return int(value)
+
+def _int_or(value: object | None, fallback: int) -> int:
+    if value is None:
+        return fallback
+    return int(value)
 
 
 def parse_dump(dump_path: str):
@@ -98,52 +135,53 @@ def parse_dump(dump_path: str):
     with open(dump_path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
+            parsed = _parse_insert(line)
+            if not parsed:
+                continue
 
-            if line.startswith('INSERT INTO "users"'):
-                m = re.search(r'VALUES\s*(\(.+\))\s*;?$', line)
-                if not m:
+            table, columns, vals = parsed
+
+            if table == "users":
+                row = _row_dict(columns, vals, ["id", "username", "pass_hash", "created_at", "avatar_url"])
+                if row.get("id") is None or not row.get("username"):
                     continue
-                vals = _split_values(m.group(1))
-                # id, username, pass_hash, created_at, avatar_url
-                if len(vals) < 4:
-                    continue
-                uid, username, _, created_at_raw = vals[0], vals[1], vals[2], vals[3]
-                avatar_url = vals[4] if len(vals) > 4 else None
-                created_at = _iso_to_unix(str(created_at_raw)) if created_at_raw else None
+                has_current_password = "password_hash" in row and row.get("password_hash") not in (None, "")
+                created_at = _optional_unix(row.get("created_at"))
+                last_seen_at = _optional_unix(row.get("last_seen_at"))
                 users.append({
-                    "old_id":     int(uid),
-                    "username":   str(username),
+                    "old_id":     int(row["id"]),
+                    "username":   str(row["username"]),
+                    "password_hash": str(row.get("password_hash") or "") if has_current_password else "",
+                    "password_salt": str(row.get("password_salt") or "") if has_current_password else "",
+                    "password_iter": _int_or(row.get("password_iter"), 100000) if has_current_password else 0,
+                    "is_admin": _int_or(row.get("is_admin"), 0),
+                    "avatar_key": str(row.get("avatar_key")) if row.get("avatar_key") else None,
                     "created_at": created_at or int(datetime.now(timezone.utc).timestamp()),
-                    "avatar_url": str(avatar_url) if avatar_url else None,
+                    "last_seen_at": last_seen_at,
+                    "telegram_id": _optional_int(row.get("telegram_id")),
+                    "require_telegram": _int_or(row.get("require_telegram"), 0 if has_current_password else 1),
                 })
 
-            elif line.startswith('INSERT INTO "liked_tracks"'):
-                m = re.search(r'VALUES\s*(\(.+\))\s*;?$', line)
-                if not m:
-                    continue
-                vals = _split_values(m.group(1))
-                # user_id, track_id, created_at
-                if len(vals) < 3:
+            elif table in ("liked_tracks", "likes"):
+                row = _row_dict(columns, vals, ["user_id", "track_id", "created_at"])
+                if row.get("user_id") is None or row.get("track_id") is None:
                     continue
                 likes.append({
-                    "user_id":    int(vals[0]),
-                    "track_id":   int(vals[1]),
-                    "created_at": int(vals[2]),
+                    "user_id":    int(row["user_id"]),
+                    "track_id":   int(row["track_id"]),
+                    "created_at": _optional_unix(row.get("created_at")) or int(datetime.now(timezone.utc).timestamp()),
                 })
 
-            elif line.startswith('INSERT INTO "listen_history"'):
-                m = re.search(r'VALUES\s*(\(.+\))\s*;?$', line)
-                if not m:
-                    continue
-                vals = _split_values(m.group(1))
-                # id, user_id, track_id, duration_ms, listened_at
-                if len(vals) < 5:
+            elif table in ("listen_history", "listens"):
+                fallback = ["id", "user_id", "track_id", "duration_ms", "listened_at" if table == "listen_history" else "created_at"]
+                row = _row_dict(columns, vals, fallback)
+                if row.get("user_id") is None or row.get("track_id") is None or row.get("duration_ms") is None:
                     continue
                 listens.append({
-                    "user_id":     int(vals[1]),
-                    "track_id":    int(vals[2]),
-                    "duration_ms": int(vals[3]),
-                    "created_at":  int(vals[4]),
+                    "user_id":     int(row["user_id"]),
+                    "track_id":    int(row["track_id"]),
+                    "duration_ms": int(row["duration_ms"]),
+                    "created_at":  _optional_unix(row.get("created_at") or row.get("listened_at")) or int(datetime.now(timezone.utc).timestamp()),
                 })
 
     return users, likes, listens
@@ -314,6 +352,9 @@ def run_import(dump_path: str, db_path: str):
     conn.execute("PRAGMA foreign_keys = OFF")   # import order doesn't matter
     conn.execute("PRAGMA journal_mode = WAL")
     cur = conn.cursor()
+    target_user_columns = {
+        row[1] for row in cur.execute("PRAGMA table_info(users)").fetchall()
+    }
 
     # ── Users ────────────────────────────────────────────────────────────────
     id_map: dict[int, int] = {}   # old_id → new_id
@@ -335,13 +376,37 @@ def run_import(dump_path: str, db_path: str):
             print(f"  ПРОПУСК  [{u['old_id']:>3}] {u['username']!r:30s} → id={new_id} {marker}")
             continue
 
-        # Insert migrated user: password_iter=0 = «нет пароля, только TG»
+        insert_values = {
+            "username": u["username"],
+            "password_hash": u.get("password_hash", ""),
+            "password_salt": u.get("password_salt", ""),
+            "password_iter": u.get("password_iter", 0),
+            "is_admin": u.get("is_admin", 0),
+            "avatar_key": u.get("avatar_key"),
+            "created_at": u["created_at"],
+            "last_seen_at": u.get("last_seen_at"),
+            "telegram_id": u.get("telegram_id"),
+            "require_telegram": u.get("require_telegram", 1),
+        }
+        insert_columns = [
+            name for name in (
+                "username",
+                "password_hash",
+                "password_salt",
+                "password_iter",
+                "is_admin",
+                "avatar_key",
+                "created_at",
+                "last_seen_at",
+                "telegram_id",
+                "require_telegram",
+            )
+            if name in target_user_columns and insert_values.get(name) is not None
+        ]
+        placeholders = ", ".join("?" for _ in insert_columns)
         cur.execute(
-            """INSERT INTO users
-               (username, password_hash, password_salt, password_iter,
-                require_telegram, created_at)
-               VALUES (?, '', '', 0, 1, ?)""",
-            (u["username"], u["created_at"])
+            f"INSERT INTO users ({', '.join(insert_columns)}) VALUES ({placeholders})",
+            tuple(insert_values[name] for name in insert_columns),
         )
         new_id = cur.lastrowid
         id_map[u["old_id"]] = new_id

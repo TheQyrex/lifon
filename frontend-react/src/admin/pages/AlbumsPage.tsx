@@ -4,6 +4,9 @@ import { toAbsoluteAsset } from '@/lib/assets';
 import { useCatalog } from '@/store/catalog';
 import { Card, Button, Field, Input, Flash } from '../ui';
 
+const AUDIO_UPLOAD_MAX_BYTES = 100 * 1024 * 1024;
+const AUDIO_UPLOAD_MAX_LABEL = '100 МБ';
+
 interface AdminTrack {
     id: number;
     album_id: number;
@@ -470,6 +473,10 @@ function TrackForm({ album, track, onClose, onSaved, setFlash }: TrackFormProps)
     }, [track]);
 
     async function uploadAudio(file: File) {
+        if (file.size > AUDIO_UPLOAD_MAX_BYTES) {
+            setFlash({ kind: 'error', text: `Аудиофайл больше ${AUDIO_UPLOAD_MAX_LABEL}` });
+            return;
+        }
         setUploadingAudio(true);
         try {
             const dur = await readAudioDuration(file);
@@ -597,6 +604,7 @@ function TrackForm({ album, track, onClose, onSaved, setFlash }: TrackFormProps)
                         />
                     </label>
                     {uploadingAudio && <span className="text-white/40 text-xs">Загружаем…</span>}
+                    {!uploadingAudio && <span className="text-white/40 text-xs">до {AUDIO_UPLOAD_MAX_LABEL}</span>}
                 </div>
                 {audioUrl && !uploadingAudio && (
                     <audio

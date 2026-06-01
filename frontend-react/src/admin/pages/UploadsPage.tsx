@@ -4,6 +4,9 @@ import { Card, Button, Field, Select, Flash } from '../ui';
 
 type UploadKind = 'image' | 'cover' | 'audio' | 'video' | 'avatar' | 'lrc';
 
+const AUDIO_UPLOAD_MAX_BYTES = 100 * 1024 * 1024;
+const AUDIO_UPLOAD_MAX_LABEL = '100 МБ';
+
 const KIND_LABELS: Record<UploadKind, string> = {
     image:  'Картинка (для баннеров)',
     cover:  'Обложка альбома',
@@ -30,6 +33,10 @@ export function UploadsPage() {
         const file = fileRef.current?.files?.[0];
         if (!file) {
             setError('Выберите файл');
+            return;
+        }
+        if (kind === 'audio' && file.size > AUDIO_UPLOAD_MAX_BYTES) {
+            setError(`Аудиофайл больше ${AUDIO_UPLOAD_MAX_LABEL}`);
             return;
         }
         setBusy(true);
@@ -65,10 +72,11 @@ export function UploadsPage() {
                         </Select>
                     </Field>
 
-                    <Field label="Файл">
+                    <Field label="Файл" hint={kind === 'audio' ? `Максимальный размер аудио: ${AUDIO_UPLOAD_MAX_LABEL}.` : undefined}>
                         <input
                             ref={fileRef}
                             type="file"
+                            accept={kind === 'audio' ? 'audio/*,.m4a,audio/mp4' : undefined}
                             className="block w-full text-sm text-white/70 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-accent/15 file:text-accent file:font-medium hover:file:bg-accent/25 file:cursor-pointer"
                         />
                     </Field>

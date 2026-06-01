@@ -10,6 +10,8 @@
 
     const root = document.getElementById('adminRoot');
     const whoamiEl = document.getElementById('adminWhoami');
+    const AUDIO_UPLOAD_MAX_BYTES = 100 * 1024 * 1024;
+    const AUDIO_UPLOAD_MAX_LABEL = '100 МБ';
 
     document.addEventListener('DOMContentLoaded', boot);
 
@@ -49,6 +51,7 @@
 
         const sectionDefs = [
             { id: 'stats',      title: 'Статистика', render: renderStatsSection },
+            { id: 'users',      title: 'Пользователи', render: renderUsersSection },
             { id: 'maintenance', title: 'Техработы',  render: renderMaintenanceSection },
             { id: 'broadcasts', title: 'Рассылка',   render: renderBroadcastsSection },
             { id: 'content',    title: 'Альбомы',    render: renderContentSection },
@@ -76,6 +79,121 @@
     function switchTab(id) {
         document.querySelectorAll('.admin-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === id));
         document.querySelectorAll('.admin-section').forEach(s => s.classList.toggle('active', s.dataset.section === id));
+    }
+
+    // ============================================================
+    // Users
+    // ============================================================
+
+    function renderUsersSection(host) {
+        const PAGE_SIZE = 50;
+        let offset = 0;
+        let q = '';
+
+        const listSlot = el('div');
+        const flashSlot = el('div');
+        const searchInp = el('input', {
+            type: 'search',
+            placeholder: 'Поиск по имени…',
+            style: { maxWidth: '260px' },
+        });
+        const refreshBtn = el('button', { class: 'admin-btn admin-btn-secondary admin-btn-sm', type: 'button', text: 'Обновить' });
+        const prevBtn = el('button', { class: 'admin-btn admin-btn-secondary admin-btn-sm', type: 'button', text: '← Назад' });
+        const nextBtn = el('button', { class: 'admin-btn admin-btn-secondary admin-btn-sm', type: 'button', text: 'Дальше →' });
+        const pageInfo = el('span', { class: 'admin-hint' });
+
+        host.appendChild(el('div', { class: 'admin-card' }, [
+            el('h2', { text: 'Пользователи' }),
+            el('p', { class: 'admin-hint', text: 'Список аккаунтов из базы: регистрации, Telegram, лайки и прослушивания.' }),
+            el('div', { class: 'admin-inline-actions', style: { marginBottom: '12px' } }, [
+                searchInp,
+                refreshBtn,
+            ]),
+            listSlot,
+            el('div', { class: 'admin-inline-actions', style: { marginTop: '12px' } }, [
+                prevBtn,
+                pageInfo,
+                nextBtn,
+            ]),
+            flashSlot,
+        ]));
+
+        let searchTimer = null;
+        searchInp.addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                q = searchInp.value.trim();
+                offset = 0;
+                refreshUsers();
+            }, 250);
+        });
+        refreshBtn.addEventListener('click', () => refreshUsers());
+        prevBtn.addEventListener('click', () => {
+            offset = Math.max(0, offset - PAGE_SIZE);
+            refreshUsers();
+        });
+        nextBtn.addEventListener('click', () => {
+            offset += PAGE_SIZE;
+            refreshUsers();
+        });
+
+        refreshUsers();
+
+        async function refreshUsers() {
+            clear(flashSlot);
+            clear(listSlot);
+            listSlot.appendChild(el('div', { class: 'admin-loading', text: 'Загружаем пользователей…' }));
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+
+            try {
+                const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) });
+                if (q) params.set('q', q);
+                const data = await api.get(`/admin/users?${params}`);
+                clear(listSlot);
+                renderUsersTable(data.users || []);
+
+                const total = Number(data.total || 0);
+                const from = total ? offset + 1 : 0;
+                const to = Math.min(offset + PAGE_SIZE, total);
+                pageInfo.textContent = `${from}–${to} из ${total}`;
+                prevBtn.disabled = offset <= 0;
+                nextBtn.disabled = offset + PAGE_SIZE >= total;
+            } catch (err) {
+                clear(listSlot);
+                pageInfo.textContent = '';
+                flashSlot.appendChild(flash(err?.message || 'Не удалось загрузить пользователей', true));
+            }
+        }
+
+        function renderUsersTable(users) {
+            if (!users.length) {
+                listSlot.appendChild(el('div', { class: 'admin-hint', text: 'Пользователи не найдены.' }));
+                return;
+            }
+
+            const cols = ['Юзер', 'Telegram', 'TG', 'Прослушиваний', 'Лайков', 'Создан', 'Заходил', 'Админ'];
+            const table = el('table', { class: 'admin-table' });
+            table.appendChild(el('thead', null, [
+                el('tr', null, cols.map(c => el('th', { text: c }))),
+            ]));
+
+            const body = el('tbody');
+            for (const u of users) {
+                body.appendChild(el('tr', null, [
+                    el('td', { text: u.username }),
+                    el('td', { text: u.telegram_id ? String(u.telegram_id) : '—' }),
+                    el('td', { text: u.require_telegram ? 'обяз.' : 'нет' }),
+                    el('td', { class: 'num', text: String(u.listens ?? 0) }),
+                    el('td', { class: 'num', text: String(u.likes ?? 0) }),
+                    el('td', { text: formatTs(u.created_at) }),
+                    el('td', { text: u.last_seen_at ? formatTs(u.last_seen_at) : '—' }),
+                    el('td', { text: u.is_admin ? '✓' : '' }),
+                ]));
+            }
+            table.appendChild(body);
+            listSlot.appendChild(table);
+        }
     }
 
     // ============================================================
@@ -820,6 +938,10 @@
                 const file = audioInput.files?.[0];
                 audioInput.value = '';
                 if (!file) return;
+                if (file.size > AUDIO_UPLOAD_MAX_BYTES) {
+                    audioLabel.textContent = `Аудиофайл больше ${AUDIO_UPLOAD_MAX_LABEL}`;
+                    return;
+                }
                 isUploadingAudio = true;
                 updateSaveState();
                 audioLabel.textContent = 'Читаем длительность…';
@@ -985,6 +1107,9 @@
     }
 
     async function uploadFile(kind, file) {
+        if (kind === 'audio' && file.size > AUDIO_UPLOAD_MAX_BYTES) {
+            throw new Error(`Аудиофайл больше ${AUDIO_UPLOAD_MAX_LABEL}`);
+        }
         const fd = new FormData();
         fd.append('kind', kind);
         fd.append('file', file);
@@ -1040,6 +1165,10 @@
                 clear(flashSlot);
                 const file = fileInput.files?.[0];
                 if (!file) { flashSlot.appendChild(flash('Выберите файл', true)); return; }
+                if (kindSel.input.value === 'audio' && file.size > AUDIO_UPLOAD_MAX_BYTES) {
+                    flashSlot.appendChild(flash(`Аудиофайл больше ${AUDIO_UPLOAD_MAX_LABEL}`, true));
+                    return;
+                }
                 submit.disabled = true;
                 try {
                     const fd = new FormData();
@@ -1057,7 +1186,14 @@
             },
         });
 
-        return el('form', { class: 'admin-form' }, [kindSel.wrapper, field('Файл', fileInput).wrapper, submit, result, flashSlot]);
+        return el('form', { class: 'admin-form' }, [
+            kindSel.wrapper,
+            field('Файл', fileInput).wrapper,
+            el('div', { class: 'admin-hint', text: `Максимальный размер аудио: ${AUDIO_UPLOAD_MAX_LABEL}.` }),
+            submit,
+            result,
+            flashSlot,
+        ]);
     }
 
     // ============================================================
