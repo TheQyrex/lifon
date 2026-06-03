@@ -337,7 +337,19 @@ body.sidebar-collapsed .player {
     margin-left: 8px;
 }
 
+.volume-control::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 100%;
+    width: 52px;
+    height: 132px;
+    transform: translateX(-50%);
+}
+
 .btn-volume {
+    position: relative;
+    z-index: 1;
     flex-shrink: 0;
 }
 
@@ -363,6 +375,7 @@ body.sidebar-collapsed .player {
 }
 
 .volume-control:hover .volume-slider-container,
+.volume-control:focus-within .volume-slider-container,
 .volume-slider-container:hover,
 .volume-slider-container.show {
     opacity: 1;
@@ -377,15 +390,14 @@ body.sidebar-collapsed .player {
 }
 
 #volumeSlider {
-    -webkit-appearance: slider-vertical;
-    appearance: slider-vertical;
     width: 12px;
     height: 100px;
     background: rgba(255, 255, 255, 0.2);
     border-radius: 6px;
     outline: none;
     cursor: pointer;
-    writing-mode: bt-lr;
+    writing-mode: vertical-lr;
+    direction: rtl;
 }
 
 #volumeSlider::-webkit-slider-thumb {
