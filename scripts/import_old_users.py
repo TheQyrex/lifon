@@ -126,6 +126,29 @@ def _int_or(value: object | None, fallback: int) -> int:
         return fallback
     return int(value)
 
+def _password_from_legacy_hash(raw: object | None) -> dict[str, object]:
+    if raw is None:
+        return {"password_hash": "", "password_salt": "", "password_iter": 0, "require_telegram": 1}
+
+    value = str(raw).strip()
+    parts = value.split("$")
+    if len(parts) == 4 and parts[0] == "pbkdf2":
+        return {
+            "password_hash": parts[3],
+            "password_salt": parts[2],
+            "password_iter": int(parts[1]),
+            "require_telegram": 0,
+        }
+    if len(parts) == 3 and parts[0] == "pbkdf2":
+        return {
+            "password_hash": parts[2],
+            "password_salt": parts[1],
+            "password_iter": 100000,
+            "require_telegram": 0,
+        }
+
+    return {"password_hash": "", "password_salt": "", "password_iter": 0, "require_telegram": 1}
+
 
 def parse_dump(dump_path: str):
     users   = []   # list of dicts
@@ -145,21 +168,22 @@ def parse_dump(dump_path: str):
                 row = _row_dict(columns, vals, ["id", "username", "pass_hash", "created_at", "avatar_url"])
                 if row.get("id") is None or not row.get("username"):
                     continue
+                legacy_password = _password_from_legacy_hash(row.get("pass_hash"))
                 has_current_password = "password_hash" in row and row.get("password_hash") not in (None, "")
                 created_at = _optional_unix(row.get("created_at"))
                 last_seen_at = _optional_unix(row.get("last_seen_at"))
                 users.append({
                     "old_id":     int(row["id"]),
                     "username":   str(row["username"]),
-                    "password_hash": str(row.get("password_hash") or "") if has_current_password else "",
-                    "password_salt": str(row.get("password_salt") or "") if has_current_password else "",
-                    "password_iter": _int_or(row.get("password_iter"), 100000) if has_current_password else 0,
+                    "password_hash": str(row.get("password_hash") or "") if has_current_password else legacy_password["password_hash"],
+                    "password_salt": str(row.get("password_salt") or "") if has_current_password else legacy_password["password_salt"],
+                    "password_iter": _int_or(row.get("password_iter"), 100000) if has_current_password else legacy_password["password_iter"],
                     "is_admin": _int_or(row.get("is_admin"), 0),
                     "avatar_key": str(row.get("avatar_key")) if row.get("avatar_key") else None,
                     "created_at": created_at or int(datetime.now(timezone.utc).timestamp()),
                     "last_seen_at": last_seen_at,
                     "telegram_id": _optional_int(row.get("telegram_id")),
-                    "require_telegram": _int_or(row.get("require_telegram"), 0 if has_current_password else 1),
+                    "require_telegram": _int_or(row.get("require_telegram"), 0 if has_current_password else int(legacy_password["require_telegram"])),
                 })
 
             elif table in ("liked_tracks", "likes"):
@@ -298,9 +322,16 @@ def parse_xlsx(xlsx_path: str):
             created_raw = _cell(row, user_start + 3)
             avatar_raw = _cell(row, user_start + 4)
             avatar = str(avatar_raw) if avatar_raw and str(avatar_raw).upper() != 'NULL' else None
+            password = _password_from_legacy_hash(_cell(row, user_start + 2))
             users.append({
                 'old_id': int(old_id),
                 'username': str(username),
+                'password_hash': password['password_hash'],
+                'password_salt': password['password_salt'],
+                'password_iter': password['password_iter'],
+                'require_telegram': password['require_telegram'],
+                'is_admin': 0,
+                'avatar_key': avatar,
                 'created_at': _iso_to_unix(str(created_raw)) if created_raw else now,
                 'avatar_url': avatar,
             })
@@ -453,11 +484,20 @@ def run_import(dump_path: str, db_path: str):
             skipped_listens += 1
             continue
         try:
-            cur.execute(
-                "INSERT INTO listens (user_id, track_id, duration_ms, created_at) VALUES (?, ?, ?, ?)",
+            exists = cur.execute(
+                """SELECT 1 FROM listens
+                   WHERE user_id = ? AND track_id = ? AND duration_ms = ? AND created_at = ?
+                   LIMIT 1""",
                 (new_uid, listen["track_id"], listen["duration_ms"], listen["created_at"])
-            )
-            imported_listens += 1
+            ).fetchone()
+            if exists:
+                skipped_listens += 1
+            else:
+                cur.execute(
+                    "INSERT INTO listens (user_id, track_id, duration_ms, created_at) VALUES (?, ?, ?, ?)",
+                    (new_uid, listen["track_id"], listen["duration_ms"], listen["created_at"])
+                )
+                imported_listens += 1
         except Exception as e:
             print(f"  WARN прослушивание: {e}")
             skipped_listens += 1
