@@ -8,13 +8,13 @@ git pull
 
 echo "==> frontend build"
 cd frontend-react
-npm ci --prefer-offline
+npm install --prefer-offline
 npm run build
 cd ..
 
 echo "==> backend build"
 cd backend
-npm ci --prefer-offline
+npm install --prefer-offline
 npm run build
 cd ..
 
