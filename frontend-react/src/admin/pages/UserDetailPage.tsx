@@ -336,7 +336,7 @@ export function UserDetailPage() {
                                     <Th>Трек</Th>
                                     <Th>Альбом</Th>
                                     <Th>Когда</Th>
-                                    <Th></Th>
+                                    <Th> </Th>
                                 </tr>
                             </thead>
                             <tbody>
