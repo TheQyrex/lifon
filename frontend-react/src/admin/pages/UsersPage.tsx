@@ -61,9 +61,12 @@ export function UsersPage() {
                     <h1 className="text-3xl font-bold tracking-tight">Пользователи</h1>
                     <p className="text-white/40 mt-1">Список юзеров. Клик по строке откроет карточку со статистикой.</p>
                 </div>
-                <Button variant="primary" size="sm" onClick={() => setShowCreate((v) => !v)}>
-                    {showCreate ? 'Отмена' : '+ Добавить'}
-                </Button>
+                <div className="flex gap-2">
+                    <ResetAllPasswordsButton />
+                    <Button variant="primary" size="sm" onClick={() => setShowCreate((v) => !v)}>
+                        {showCreate ? 'Отмена' : '+ Добавить'}
+                    </Button>
+                </div>
             </header>
 
             {showCreate && (
@@ -141,6 +144,31 @@ export function UsersPage() {
                 )}
             </Card>
         </div>
+    );
+}
+
+function ResetAllPasswordsButton() {
+    const [busy, setBusy] = useState(false);
+    const [done, setDone] = useState(false);
+
+    async function reset() {
+        if (!confirm('Сбросить пароли ВСЕМ пользователям? При следующем входе каждый придумает новый пароль.')) return;
+        setBusy(true);
+        try {
+            await api.post('/admin/users/reset-all-passwords');
+            setDone(true);
+            setTimeout(() => setDone(false), 3000);
+        } catch (err) {
+            alert(err instanceof ApiException ? err.message : 'Ошибка');
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    return (
+        <Button variant="danger" size="sm" onClick={reset} disabled={busy}>
+            {done ? '✓ Готово' : busy ? 'Сбрасываем…' : 'Сбросить все пароли'}
+        </Button>
     );
 }
 

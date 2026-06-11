@@ -82,7 +82,9 @@ export function AuthScreen() {
         } catch (err) {
             if (err instanceof ApiException) {
                 if (err.error === 'invalid_credentials') setError('Пользователь не найден');
-                else setError(err.message);
+                else if (err.error === 'password_required') setStep('password'); // у юзера уже есть пароль
+                else if (err.error === 'telegram_only') setError('Этот аккаунт входит только через Telegram');
+                else setError(err.message || 'Ошибка');
             } else {
                 setError('Ошибка соединения');
             }

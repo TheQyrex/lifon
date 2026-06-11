@@ -5,6 +5,14 @@ import { validatePassword, validateUsername, validationErrorResponse } from '../
 
 const users = new Hono<AppEnv>();
 
+// POST /admin/users/reset-all-passwords — сброс паролей всем пользователям
+users.post('/reset-all-passwords', async (c) => {
+    await c.env.DB.prepare(
+        "UPDATE users SET password_hash = '', password_salt = '', password_iter = 0",
+    ).run();
+    return c.json({ ok: true });
+});
+
 // GET /admin/users — список с пагинацией и поиском
 users.get('/', async (c) => {
     const limit  = Math.min(100, Math.max(1, Number(c.req.query('limit'))  || 50));
