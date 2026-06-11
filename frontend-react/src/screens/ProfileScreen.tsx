@@ -246,7 +246,7 @@ export function ProfileScreen() {
                             )}
                         </div>
                     ) : (
-                        <h2 style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <h2 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
                             {displayUsername}
                             {user && (
                                 <button
