@@ -4,6 +4,7 @@ import { api, ApiException } from '@/lib/api';
 import { formatTs } from '@/lib/format';
 import { Card, Button, Flash, Table, Th, Td, StatBox } from '../ui';
 import { useAuth } from '@/store/auth';
+import type { Album } from '@/types/api';
 
 interface LikeRow {
     track_id: number;
@@ -66,11 +67,15 @@ export function UserDetailPage() {
     const [statBusy, setStatBusy] = useState(false);
 
     // Likes management
-    const [addTrackId, setAddTrackId] = useState('');
+    const [albums, setAlbums] = useState<Album[]>([]);
+    const [selectedTrackId, setSelectedTrackId] = useState('');
     const [likesBusy, setLikesBusy] = useState(false);
 
     useEffect(() => {
         void load();
+        api.get<{ ok: true; albums: Album[] }>('/albums')
+            .then(r => setAlbums(r.albums))
+            .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
@@ -172,12 +177,12 @@ export function UserDetailPage() {
     async function addLike(e: React.FormEvent) {
         e.preventDefault();
         if (!data) return;
-        const tid = parseInt(addTrackId, 10);
-        if (!tid) { setFlash({ kind: 'error', text: 'Введи корректный ID трека' }); return; }
+        const tid = parseInt(selectedTrackId, 10);
+        if (!tid) { setFlash({ kind: 'error', text: 'Выбери трек' }); return; }
         setLikesBusy(true);
         try {
             await api.post(`/admin/users/${data.user.id}/likes`, { track_id: tid });
-            setAddTrackId('');
+            setSelectedTrackId('');
             await load();
         } catch (err) {
             setFlash({ kind: 'error', text: err instanceof ApiException ? err.message : 'Ошибка' });
@@ -317,12 +322,26 @@ export function UserDetailPage() {
                     {/* Форма добавить лайк */}
                     <form onSubmit={addLike} className="flex gap-2 items-end">
                         <div className="flex-1">
-                            <label className="block text-xs text-white/40 mb-1">Добавить лайк (ID трека)</label>
-                            <input type="number" min="1" placeholder="Например: 3"
-                                value={addTrackId} onChange={(e) => setAddTrackId(e.target.value)}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30" />
+                            <label className="block text-xs text-white/40 mb-1">Добавить лайк</label>
+                            <select
+                                value={selectedTrackId}
+                                onChange={(e) => setSelectedTrackId(e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/30"
+                                style={{ backgroundColor: '#1a1a1f' }}
+                            >
+                                <option value="">— Выбери трек —</option>
+                                {albums.map(album => (
+                                    <optgroup key={album.id} label={`${album.title} (${album.year})`}>
+                                        {album.tracks.map(track => (
+                                            <option key={track.id} value={track.id}>
+                                                {track.title}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                ))}
+                            </select>
                         </div>
-                        <Button type="submit" variant="secondary" size="sm" disabled={likesBusy || !addTrackId}>
+                        <Button type="submit" variant="secondary" size="sm" disabled={likesBusy || !selectedTrackId}>
                             + Добавить
                         </Button>
                     </form>
