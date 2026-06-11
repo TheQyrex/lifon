@@ -59,10 +59,10 @@ export function UserDetailPage() {
     const [newPassword, setNewPassword] = useState('');
     const [pwBusy, setPwBusy] = useState(false);
 
-    // Stat bonuses (listenMinutesBonus хранится в минутах для UI, конвертируется в мс при сохранении)
-    const [listensBonus, setListensBonus] = useState('');
-    const [listenMinutesBonus, setListenMinutesBonus] = useState('');
-    const [uniqueTracksBonus, setUniqueTracksBonus] = useState('');
+    // Желаемые итоговые значения (пользователь вводит что хочет видеть, бонус = желаемое - реальное)
+    const [desiredListens, setDesiredListens] = useState('');
+    const [desiredMinutes, setDesiredMinutes] = useState('');
+    const [desiredUnique, setDesiredUnique] = useState('');
     const [statBusy, setStatBusy] = useState(false);
 
     // Likes management
@@ -78,9 +78,10 @@ export function UserDetailPage() {
         try {
             const res = await api.get<UserDetail>(`/admin/users/${id}`);
             setData(res);
-            setListensBonus(String(res.totals.listens_bonus));
-            setListenMinutesBonus(String(Math.round(res.totals.listen_ms_bonus / 60_000)));
-            setUniqueTracksBonus(String(res.totals.unique_tracks_bonus));
+            // Показываем итоговое значение (реальное + бонус)
+            setDesiredListens(String(res.totals.listens));
+            setDesiredMinutes(String(Math.round(res.totals.listen_ms / 60_000)));
+            setDesiredUnique(String(res.totals.unique_tracks));
             setError(null);
         } catch (err) {
             setError(err instanceof ApiException ? err.message : 'Ошибка');
@@ -153,10 +154,11 @@ export function UserDetailPage() {
         if (!data) return;
         setStatBusy(true);
         try {
+            // Бонус = желаемое - реальное (не может быть отрицательным)
             await api.patch(`/admin/users/${data.user.id}`, {
-                listens_bonus: Math.max(0, parseInt(listensBonus, 10) || 0),
-                listen_ms_bonus: Math.max(0, parseInt(listenMinutesBonus, 10) || 0) * 60_000,
-                unique_tracks_bonus: Math.max(0, parseInt(uniqueTracksBonus, 10) || 0),
+                listens_bonus: Math.max(0, (parseInt(desiredListens, 10) || 0) - t.listens_real),
+                listen_ms_bonus: Math.max(0, ((parseInt(desiredMinutes, 10) || 0) * 60_000) - t.listen_ms_real),
+                unique_tracks_bonus: Math.max(0, (parseInt(desiredUnique, 10) || 0) - t.unique_tracks_real),
             });
             setFlash({ kind: 'success', text: 'Статистика обновлена' });
             await load();
@@ -282,24 +284,24 @@ export function UserDetailPage() {
                             <label className="block text-xs text-white/40 mb-1">
                                 Прослушиваний (реальных: {t.listens_real})
                             </label>
-                            <input type="number" min="0" value={listensBonus}
-                                onChange={(e) => setListensBonus(e.target.value)}
+                            <input type="number" min="0" value={desiredListens}
+                                onChange={(e) => setDesiredListens(e.target.value)}
                                 className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/30" />
                         </div>
                         <div>
                             <label className="block text-xs text-white/40 mb-1">
                                 Уник. треков (реальных: {t.unique_tracks_real})
                             </label>
-                            <input type="number" min="0" value={uniqueTracksBonus}
-                                onChange={(e) => setUniqueTracksBonus(e.target.value)}
+                            <input type="number" min="0" value={desiredUnique}
+                                onChange={(e) => setDesiredUnique(e.target.value)}
                                 className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/30" />
                         </div>
                         <div>
                             <label className="block text-xs text-white/40 mb-1">
-                                Минут прослушано, бонус (реальных: {Math.round(t.listen_ms_real / 60_000)} мин)
+                                Минут прослушано (реальных: {Math.round(t.listen_ms_real / 60_000)})
                             </label>
-                            <input type="number" min="0" value={listenMinutesBonus}
-                                onChange={(e) => setListenMinutesBonus(e.target.value)}
+                            <input type="number" min="0" value={desiredMinutes}
+                                onChange={(e) => setDesiredMinutes(e.target.value)}
                                 className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/30" />
                         </div>
                     </div>
