@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../env';
 import { requireAuth } from '../lib/auth';
+import { signJwt } from '../lib/crypto';
 import { deleteFromR2, publicUrl, uploadToR2, UploadError } from '../lib/r2';
+import { validateUsername, validationErrorResponse } from '../lib/validation';
 
 const profile = new Hono<AppEnv>();
 
@@ -80,6 +82,42 @@ profile.get('/', async (c) => {
             plays: t.plays,
         })),
     });
+});
+
+// PATCH /profile/username — сменить никнейм (мин. 5 символов, уникальный)
+profile.patch('/username', async (c) => {
+    const user = c.get('user')!;
+
+    const body = await c.req.json<{ username?: unknown }>().catch(() => null);
+    if (!body) return c.json({ ok: false, error: 'bad_request' }, 400);
+
+    let newUsername: string;
+    try {
+        newUsername = validateUsername(body.username);
+    } catch (err) {
+        return validationErrorResponse(c, err);
+    }
+
+    if (newUsername.length < 5) {
+        return c.json({ ok: false, error: 'invalid_input', field: 'username', message: 'Ник должен быть не менее 5 символов' }, 400);
+    }
+
+    // Ник не изменился — просто вернуть свежий токен
+    if (newUsername !== user.username) {
+        const taken = await c.env.DB.prepare('SELECT id FROM users WHERE username = ? AND id != ?')
+            .bind(newUsername, user.id).first();
+        if (taken) return c.json({ ok: false, error: 'username_taken', message: 'Этот ник уже занят' }, 409);
+
+        await c.env.DB.prepare('UPDATE users SET username = ? WHERE id = ?')
+            .bind(newUsername, user.id).run();
+    }
+
+    const token = await signJwt(
+        { sub: user.id, name: newUsername, adm: user.isAdmin ? 1 : 0 },
+        c.env.JWT_SECRET,
+    );
+
+    return c.json({ ok: true, username: newUsername, token });
 });
 
 profile.post('/avatar', async (c) => {

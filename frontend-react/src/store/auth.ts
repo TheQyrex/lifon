@@ -13,15 +13,21 @@ interface AuthState {
     pendingTg: PendingTg | null;
     /** username, ожидающий первичной установки пароля */
     pendingUsername: string | null;
+    /** Пользователь установил первый пароль — ждём привязки Telegram (или пропуска) */
+    pendingFirstLoginUser: User | null;
     bootstrap: () => Promise<void>;
     /** Шаг 1: без пароля — проверяем username. Шаг 2: с паролем — логин / установка пароля. */
     login: (username: string, password?: string) => Promise<void>;
     setFirstPassword: (password: string) => Promise<void>;
     cancelPendingUsername: () => void;
+    /** Завершить первый вход после TG-привязки или пропуска */
+    completeFirstLogin: () => void;
     loginWithTelegram: (data: TelegramAuthData) => Promise<void>;
     completeTelegramSetup: (username: string, password: string) => Promise<void>;
     cancelTelegramSetup: () => void;
     linkTelegram: (data: TelegramAuthData) => Promise<void>;
+    /** Обновить ник и токен в стейте (после PATCH /profile/username) */
+    updateUsername: (newUsername: string, newToken: string) => void;
     logout: () => void;
 }
 
@@ -30,6 +36,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     ready: false,
     pendingTg: null,
     pendingUsername: null,
+    pendingFirstLoginUser: null,
 
     async bootstrap() {
         if (!getToken()) {
@@ -63,12 +70,19 @@ export const useAuth = create<AuthState>((set, get) => ({
         const { pendingUsername } = get();
         if (!pendingUsername) throw new Error('Нет активной сессии');
         const res = await api.post<AuthResponse>('/auth/login', { username: pendingUsername, password });
+        // Сохраняем токен чтобы linkTelegram мог сделать авторизованный запрос
         setToken(res.token);
-        set({ user: res.user, pendingUsername: null });
+        // НЕ устанавливаем user — ждём шага привязки TG (или пропуска)
+        set({ pendingFirstLoginUser: res.user, pendingUsername: null });
     },
 
     cancelPendingUsername() {
         set({ pendingUsername: null });
+    },
+
+    completeFirstLogin() {
+        const { pendingFirstLoginUser } = get();
+        set({ user: pendingFirstLoginUser, pendingFirstLoginUser: null });
     },
 
     async loginWithTelegram(data) {
@@ -99,7 +113,18 @@ export const useAuth = create<AuthState>((set, get) => ({
 
     async linkTelegram(data) {
         const res = await api.post<{ ok: true; telegram_id: number }>('/auth/telegram/link', data);
-        set((s) => ({ user: s.user ? { ...s.user, telegram_id: res.telegram_id } : null }));
+        set((s) => ({
+            // Обновляем telegram_id в обоих случаях: обычный юзер и ожидающий после первого пароля
+            user: s.user ? { ...s.user, telegram_id: res.telegram_id } : null,
+            pendingFirstLoginUser: s.pendingFirstLoginUser
+                ? { ...s.pendingFirstLoginUser, telegram_id: res.telegram_id }
+                : null,
+        }));
+    },
+
+    updateUsername(newUsername, newToken) {
+        setToken(newToken);
+        set((s) => ({ user: s.user ? { ...s.user, username: newUsername } : null }));
     },
 
     logout() {

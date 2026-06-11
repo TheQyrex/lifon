@@ -29,8 +29,10 @@ interface ProfileResponse {
     top_tracks: TopTrack[];
 }
 
+const USERNAME_RE = /^[a-z0-9._#-]{5,24}$/;
+
 export function ProfileScreen() {
-    const { user, logout } = useAuth();
+    const { user, logout, updateUsername } = useAuth();
     const snowOn = useUi((s) => s.snowOn);
     const toggleSnow = useUi((s) => s.toggleSnow);
     const fileRef = useRef<HTMLInputElement>(null);
@@ -41,6 +43,12 @@ export function ProfileScreen() {
     const [data, setData] = useState<ProfileResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [myAchievements, setMyAchievements] = useState<Achievement[]>([]);
+
+    // Редактирование ника
+    const [editingUsername, setEditingUsername] = useState(false);
+    const [newUsername, setNewUsername] = useState('');
+    const [usernameError, setUsernameError] = useState<string | null>(null);
+    const [savingUsername, setSavingUsername] = useState(false);
 
     useEffect(() => { void refresh(); }, []);
 
@@ -70,8 +78,45 @@ export function ProfileScreen() {
         }
     }
 
+    function startEditUsername() {
+        setNewUsername(data?.user.username ?? user?.username ?? '');
+        setUsernameError(null);
+        setEditingUsername(true);
+    }
+
+    function cancelEditUsername() {
+        setEditingUsername(false);
+        setUsernameError(null);
+    }
+
+    async function saveUsername() {
+        const trimmed = newUsername.trim().toLowerCase();
+        if (trimmed.length < 5) {
+            setUsernameError('Не менее 5 символов');
+            return;
+        }
+        if (!USERNAME_RE.test(trimmed)) {
+            setUsernameError('Только a-z, 0-9, точка, дефис, подчёркивание (5–24 символа)');
+            return;
+        }
+        setUsernameError(null);
+        setSavingUsername(true);
+        try {
+            const res = await api.patch<{ ok: true; username: string; token: string }>(
+                '/profile/username',
+                { username: trimmed },
+            );
+            updateUsername(res.username, res.token);
+            setData((prev) => prev ? { ...prev, user: { ...prev.user, username: res.username } } : null);
+            setEditingUsername(false);
+        } catch (err) {
+            setUsernameError(err instanceof ApiException ? err.message : 'Ошибка при сохранении');
+        } finally {
+            setSavingUsername(false);
+        }
+    }
+
     function playTrack(trackId: number) {
-        // Найдём весь альбом этого трека чтобы поставить очередь
         const album = albums.find((a) => a.tracks.some((t) => t.id === trackId));
         const track = album?.tracks.find((t) => t.id === trackId);
         if (!album || !track) return;
@@ -82,6 +127,7 @@ export function ProfileScreen() {
     const fav = top[0];
     const minutes = data ? Math.round(data.totals.listen_ms / 60_000) : 0;
     const avatarUrl = data?.user.avatar_url ? toAbsoluteAsset(data.user.avatar_url) : null;
+    const displayUsername = data?.user.username || user?.username || 'Гость';
     const statsLine = data
         ? `Любимых треков: ${data.totals.likes} • Прослушано: ${minutes} мин • Треков прослушано: ${data.totals.listens} раз`
         : '';
@@ -126,7 +172,107 @@ export function ProfileScreen() {
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadAvatar(f); e.target.value = ''; }}
                     />
 
-                    <h2>{user?.username || 'Гость'}</h2>
+                    {/* ── Ник с кнопкой-карандашом ── */}
+                    {editingUsername ? (
+                        <div style={{
+                            display: 'flex', flexDirection: 'column',
+                            alignItems: 'center', gap: 6,
+                            width: '100%', maxWidth: 280,
+                        }}>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center', width: '100%' }}>
+                                <input
+                                    type="text"
+                                    value={newUsername}
+                                    onChange={(e) => { setNewUsername(e.target.value); setUsernameError(null); }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') void saveUsername();
+                                        if (e.key === 'Escape') cancelEditUsername();
+                                    }}
+                                    autoFocus
+                                    maxLength={24}
+                                    style={{
+                                        flex: 1,
+                                        background: 'rgba(255,255,255,0.08)',
+                                        border: '1px solid rgba(255,255,255,0.2)',
+                                        borderRadius: 10,
+                                        color: '#fff',
+                                        fontSize: 17,
+                                        fontWeight: 700,
+                                        padding: '6px 12px',
+                                        outline: 'none',
+                                        textAlign: 'center',
+                                        letterSpacing: '0.01em',
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => void saveUsername()}
+                                    disabled={savingUsername}
+                                    title="Сохранить"
+                                    style={{
+                                        background: 'rgba(255,255,255,0.12)',
+                                        border: 'none',
+                                        borderRadius: 8,
+                                        color: '#fff',
+                                        cursor: 'pointer',
+                                        padding: '6px 11px',
+                                        fontSize: 15,
+                                        lineHeight: 1,
+                                    }}
+                                >
+                                    {savingUsername ? '…' : '✓'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={cancelEditUsername}
+                                    title="Отмена"
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: 'rgba(255,255,255,0.35)',
+                                        cursor: 'pointer',
+                                        padding: '6px 8px',
+                                        fontSize: 15,
+                                        lineHeight: 1,
+                                    }}
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                            {usernameError && (
+                                <p style={{ color: '#FF6B8A', fontSize: 12, margin: 0, textAlign: 'center' }}>
+                                    {usernameError}
+                                </p>
+                            )}
+                        </div>
+                    ) : (
+                        <h2 style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                            {displayUsername}
+                            {user && (
+                                <button
+                                    type="button"
+                                    onClick={startEditUsername}
+                                    title="Изменить ник"
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        color: 'rgba(255,255,255,0.3)',
+                                        padding: 2,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        transition: 'color 0.18s',
+                                        flexShrink: 0,
+                                    }}
+                                    onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.75)')}
+                                    onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.3)')}
+                                >
+                                    <PencilIcon />
+                                </button>
+                            )}
+                        </h2>
+                    )}
+
                     {error && <p style={{ color: '#FF6B8A', fontSize: 13 }}>{error}</p>}
                     {data && <p>{statsLine}</p>}
 
@@ -201,6 +347,23 @@ function positionColor(pos: number): string {
     if (pos === 2) return '#B0BEC5';
     if (pos === 3) return '#CD7F32';
     return 'rgba(255,255,255,0.4)';
+}
+
+function PencilIcon() {
+    return (
+        <svg
+            width="14" height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <line x1="18" y1="2" x2="22" y2="6" />
+            <path d="M7.5 20.5L19 9l-4-4L3.5 16.5 2 22z" />
+        </svg>
+    );
 }
 
 function SnowflakeIcon() {
