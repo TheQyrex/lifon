@@ -97,12 +97,15 @@ users.get('/:id', async (c) => {
 
     const totals = await c.env.DB.prepare(
         `SELECT
-            (SELECT COUNT(*) FROM listens WHERE user_id = ?) AS listens,
-            (SELECT COUNT(DISTINCT track_id) FROM listens WHERE user_id = ?) AS unique_tracks,
-            (SELECT COALESCE(SUM(duration_ms), 0) FROM listens WHERE user_id = ?) AS listen_ms,
-            (SELECT COUNT(*) FROM likes WHERE user_id = ?) AS likes`,
-    ).bind(id, id, id, id).first<{
-        listens: number; unique_tracks: number; listen_ms: number; likes: number;
+            (SELECT COUNT(*) FROM listens WHERE user_id = ?) AS listens_real,
+            (SELECT COUNT(DISTINCT track_id) FROM listens WHERE user_id = ?) AS unique_tracks_real,
+            (SELECT COALESCE(SUM(duration_ms), 0) FROM listens WHERE user_id = ?) AS listen_ms_real,
+            (SELECT COUNT(*) FROM likes WHERE user_id = ?) AS likes,
+            u.listens_bonus, u.listen_ms_bonus, u.unique_tracks_bonus
+         FROM users u WHERE u.id = ?`,
+    ).bind(id, id, id, id, id).first<{
+        listens_real: number; unique_tracks_real: number; listen_ms_real: number; likes: number;
+        listens_bonus: number; listen_ms_bonus: number; unique_tracks_bonus: number;
     }>();
 
     const topTracks = await c.env.DB.prepare(
@@ -120,18 +123,23 @@ users.get('/:id', async (c) => {
         album_title: string | null; plays: number;
     }>();
 
-    const recentLikes = await c.env.DB.prepare(
+    const allLikes = await c.env.DB.prepare(
         `SELECT k.track_id, t.title, t.artist, a.title AS album_title, k.created_at
          FROM likes k
          LEFT JOIN tracks t ON t.id = k.track_id
          LEFT JOIN albums a ON a.id = t.album_id
          WHERE k.user_id = ?
-         ORDER BY k.created_at DESC
-         LIMIT 20`,
+         ORDER BY k.created_at DESC`,
     ).bind(id).all<{
         track_id: number; title: string | null; artist: string | null;
         album_title: string | null; created_at: number;
     }>();
+
+    const bonuses = {
+        listens_bonus: totals?.listens_bonus ?? 0,
+        listen_ms_bonus: totals?.listen_ms_bonus ?? 0,
+        unique_tracks_bonus: totals?.unique_tracks_bonus ?? 0,
+    };
 
     return c.json({
         ok: true,
@@ -145,17 +153,22 @@ users.get('/:id', async (c) => {
             require_telegram: !!u.require_telegram,
         },
         totals: {
-            listens: totals?.listens ?? 0,
-            unique_tracks: totals?.unique_tracks ?? 0,
-            listen_ms: totals?.listen_ms ?? 0,
+            listens: (totals?.listens_real ?? 0) + bonuses.listens_bonus,
+            unique_tracks: (totals?.unique_tracks_real ?? 0) + bonuses.unique_tracks_bonus,
+            listen_ms: (totals?.listen_ms_real ?? 0) + bonuses.listen_ms_bonus,
             likes: totals?.likes ?? 0,
+            // raw values for admin editing
+            listens_real: totals?.listens_real ?? 0,
+            unique_tracks_real: totals?.unique_tracks_real ?? 0,
+            listen_ms_real: totals?.listen_ms_real ?? 0,
+            ...bonuses,
         },
         top_tracks: topTracks.results,
-        recent_likes: recentLikes.results,
+        likes: allLikes.results,
     });
 });
 
-// PATCH /admin/users/:id — изменение полей: is_admin, require_telegram, telegram_id
+// PATCH /admin/users/:id — изменение полей: is_admin, require_telegram, telegram_id, password
 users.patch('/:id', async (c) => {
     const id = Number(c.req.param('id'));
     if (!Number.isInteger(id) || id <= 0) return c.json({ ok: false, error: 'bad_id' }, 400);
@@ -169,6 +182,10 @@ users.patch('/:id', async (c) => {
         is_admin?: unknown;
         require_telegram?: unknown;
         telegram_id?: unknown;
+        password?: unknown;
+        listens_bonus?: unknown;
+        listen_ms_bonus?: unknown;
+        unique_tracks_bonus?: unknown;
     }>().catch(() => null);
     if (!body) return c.json({ ok: false, error: 'bad_request' }, 400);
 
@@ -189,6 +206,29 @@ users.patch('/:id', async (c) => {
             values.push(body.telegram_id);
         }
     }
+    if (typeof body.listens_bonus === 'number' && Number.isInteger(body.listens_bonus)) {
+        setClauses.push('listens_bonus = ?');
+        values.push(Math.max(0, body.listens_bonus));
+    }
+    if (typeof body.listen_ms_bonus === 'number' && Number.isInteger(body.listen_ms_bonus)) {
+        setClauses.push('listen_ms_bonus = ?');
+        values.push(Math.max(0, body.listen_ms_bonus));
+    }
+    if (typeof body.unique_tracks_bonus === 'number' && Number.isInteger(body.unique_tracks_bonus)) {
+        setClauses.push('unique_tracks_bonus = ?');
+        values.push(Math.max(0, body.unique_tracks_bonus));
+    }
+    if (body.password !== undefined) {
+        let pw: string;
+        try {
+            pw = validatePassword(body.password);
+        } catch (err) {
+            return validationErrorResponse(c, err);
+        }
+        const { hash, salt, iterations } = await hashPassword(pw);
+        setClauses.push('password_hash = ?', 'password_salt = ?', 'password_iter = ?');
+        values.push(hash, salt, iterations);
+    }
 
     if (setClauses.length === 0) return c.json({ ok: false, error: 'bad_request', message: 'Нет полей для обновления' }, 400);
 
@@ -198,6 +238,39 @@ users.patch('/:id', async (c) => {
     ).bind(...values).run();
 
     if (!info.meta.changes) return c.json({ ok: false, error: 'not_found' }, 404);
+    return c.json({ ok: true });
+});
+
+// POST /admin/users/:id/likes — добавить лайк пользователю
+users.post('/:id/likes', async (c) => {
+    const id = Number(c.req.param('id'));
+    if (!Number.isInteger(id) || id <= 0) return c.json({ ok: false, error: 'bad_id' }, 400);
+
+    const body = await c.req.json<{ track_id?: unknown }>().catch(() => null);
+    const trackId = typeof body?.track_id === 'number' ? body.track_id : Number(body?.track_id);
+    if (!Number.isInteger(trackId) || trackId <= 0) {
+        return c.json({ ok: false, error: 'bad_track_id' }, 400);
+    }
+
+    const user = await c.env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(id).first();
+    if (!user) return c.json({ ok: false, error: 'not_found' }, 404);
+
+    await c.env.DB.prepare(
+        'INSERT OR IGNORE INTO likes (user_id, track_id) VALUES (?, ?)',
+    ).bind(id, trackId).run();
+
+    return c.json({ ok: true });
+});
+
+// DELETE /admin/users/:id/likes/:trackId — удалить лайк у пользователя
+users.delete('/:id/likes/:trackId', async (c) => {
+    const id = Number(c.req.param('id'));
+    const trackId = Number(c.req.param('trackId'));
+    if (!Number.isInteger(id) || id <= 0 || !Number.isInteger(trackId) || trackId <= 0) {
+        return c.json({ ok: false, error: 'bad_id' }, 400);
+    }
+
+    await c.env.DB.prepare('DELETE FROM likes WHERE user_id = ? AND track_id = ?').bind(id, trackId).run();
     return c.json({ ok: true });
 });
 

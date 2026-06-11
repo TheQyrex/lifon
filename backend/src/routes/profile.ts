@@ -7,6 +7,14 @@ const profile = new Hono<AppEnv>();
 
 profile.use('*', requireAuth);
 
+// POST /profile/ping — обновляет last_seen_at для онлайн-трекинга (вызывается с мобильного приложения)
+profile.post('/ping', async (c) => {
+    const user = c.get('user')!;
+    await c.env.DB.prepare('UPDATE users SET last_seen_at = unixepoch() WHERE id = ?')
+        .bind(user.id).run();
+    return c.json({ ok: true });
+});
+
 profile.get('/', async (c) => {
     const user = c.get('user')!;
     const row = await c.env.DB.prepare(
@@ -25,10 +33,12 @@ profile.get('/', async (c) => {
 
     const totals = await c.env.DB.prepare(
         `SELECT
-            (SELECT COUNT(*) FROM listens WHERE user_id = ?) AS listens,
-            (SELECT COALESCE(SUM(duration_ms), 0) FROM listens WHERE user_id = ?) AS listen_ms,
-            (SELECT COUNT(*) FROM likes WHERE user_id = ?) AS likes`,
-    ).bind(user.id, user.id, user.id).first<{ listens: number; listen_ms: number; likes: number }>();
+            (SELECT COUNT(*) FROM listens WHERE user_id = ?) + u.listens_bonus AS listens,
+            (SELECT COALESCE(SUM(duration_ms), 0) FROM listens WHERE user_id = ?) + u.listen_ms_bonus AS listen_ms,
+            (SELECT COUNT(*) FROM likes WHERE user_id = ?) AS likes,
+            (SELECT COUNT(DISTINCT track_id) FROM listens WHERE user_id = ?) + u.unique_tracks_bonus AS unique_tracks
+         FROM users u WHERE u.id = ?`,
+    ).bind(user.id, user.id, user.id, user.id, user.id).first<{ listens: number; listen_ms: number; likes: number; unique_tracks: number }>();
 
     const topTracks = await c.env.DB.prepare(
         `SELECT l.track_id, t.title, t.artist, a.title AS album_title, a.cover_key, COUNT(*) AS plays
@@ -59,6 +69,7 @@ profile.get('/', async (c) => {
             listens: totals?.listens ?? 0,
             listen_ms: totals?.listen_ms ?? 0,
             likes: totals?.likes ?? 0,
+            unique_tracks: totals?.unique_tracks ?? 0,
         },
         top_tracks: topTracks.results.map(t => ({
             track_id: t.track_id,

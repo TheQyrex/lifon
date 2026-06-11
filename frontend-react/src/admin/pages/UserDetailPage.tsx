@@ -5,6 +5,14 @@ import { formatTs } from '@/lib/format';
 import { Card, Button, Flash, Table, Th, Td, StatBox } from '../ui';
 import { useAuth } from '@/store/auth';
 
+interface LikeRow {
+    track_id: number;
+    title: string | null;
+    artist: string | null;
+    album_title: string | null;
+    created_at: number;
+}
+
 interface UserDetail {
     ok: true;
     user: {
@@ -21,6 +29,12 @@ interface UserDetail {
         unique_tracks: number;
         listen_ms: number;
         likes: number;
+        listens_real: number;
+        unique_tracks_real: number;
+        listen_ms_real: number;
+        listens_bonus: number;
+        listen_ms_bonus: number;
+        unique_tracks_bonus: number;
     };
     top_tracks: {
         track_id: number;
@@ -29,13 +43,7 @@ interface UserDetail {
         album_title: string | null;
         plays: number;
     }[];
-    recent_likes: {
-        track_id: number;
-        title: string | null;
-        artist: string | null;
-        album_title: string | null;
-        created_at: number;
-    }[];
+    likes: LikeRow[];
 }
 
 export function UserDetailPage() {
@@ -47,6 +55,20 @@ export function UserDetailPage() {
     const [flash, setFlash] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
     const [busy, setBusy] = useState(false);
 
+    // Password reset
+    const [newPassword, setNewPassword] = useState('');
+    const [pwBusy, setPwBusy] = useState(false);
+
+    // Stat bonuses
+    const [listensBonus, setListensBonus] = useState('0');
+    const [listenMsBonus, setListenMsBonus] = useState('0');
+    const [uniqueTracksBonus, setUniqueTracksBonus] = useState('0');
+    const [statBusy, setStatBusy] = useState(false);
+
+    // Likes management
+    const [addTrackId, setAddTrackId] = useState('');
+    const [likesBusy, setLikesBusy] = useState(false);
+
     useEffect(() => {
         void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -56,6 +78,9 @@ export function UserDetailPage() {
         try {
             const res = await api.get<UserDetail>(`/admin/users/${id}`);
             setData(res);
+            setListensBonus(String(res.totals.listens_bonus));
+            setListenMsBonus(String(res.totals.listen_ms_bonus));
+            setUniqueTracksBonus(String(res.totals.unique_tracks_bonus));
             setError(null);
         } catch (err) {
             setError(err instanceof ApiException ? err.message : 'Ошибка');
@@ -105,6 +130,73 @@ export function UserDetailPage() {
         }
     }
 
+    async function resetPassword(e: React.FormEvent) {
+        e.preventDefault();
+        if (!data || newPassword.trim().length < 8) {
+            setFlash({ kind: 'error', text: 'Пароль должен быть не менее 8 символов' });
+            return;
+        }
+        setPwBusy(true);
+        try {
+            await api.patch(`/admin/users/${data.user.id}`, { password: newPassword });
+            setFlash({ kind: 'success', text: 'Пароль успешно изменён' });
+            setNewPassword('');
+        } catch (err) {
+            setFlash({ kind: 'error', text: err instanceof ApiException ? err.message : 'Ошибка' });
+        } finally {
+            setPwBusy(false);
+        }
+    }
+
+    async function saveStatBonuses(e: React.FormEvent) {
+        e.preventDefault();
+        if (!data) return;
+        setStatBusy(true);
+        try {
+            await api.patch(`/admin/users/${data.user.id}`, {
+                listens_bonus: Math.max(0, parseInt(listensBonus, 10) || 0),
+                listen_ms_bonus: Math.max(0, parseInt(listenMsBonus, 10) || 0),
+                unique_tracks_bonus: Math.max(0, parseInt(uniqueTracksBonus, 10) || 0),
+            });
+            setFlash({ kind: 'success', text: 'Статистика обновлена' });
+            await load();
+        } catch (err) {
+            setFlash({ kind: 'error', text: err instanceof ApiException ? err.message : 'Ошибка' });
+        } finally {
+            setStatBusy(false);
+        }
+    }
+
+    async function addLike(e: React.FormEvent) {
+        e.preventDefault();
+        if (!data) return;
+        const tid = parseInt(addTrackId, 10);
+        if (!tid) { setFlash({ kind: 'error', text: 'Введи корректный ID трека' }); return; }
+        setLikesBusy(true);
+        try {
+            await api.post(`/admin/users/${data.user.id}/likes`, { track_id: tid });
+            setAddTrackId('');
+            await load();
+        } catch (err) {
+            setFlash({ kind: 'error', text: err instanceof ApiException ? err.message : 'Ошибка' });
+        } finally {
+            setLikesBusy(false);
+        }
+    }
+
+    async function removeLike(trackId: number) {
+        if (!data) return;
+        setLikesBusy(true);
+        try {
+            await api.delete(`/admin/users/${data.user.id}/likes/${trackId}`);
+            await load();
+        } catch (err) {
+            setFlash({ kind: 'error', text: err instanceof ApiException ? err.message : 'Ошибка' });
+        } finally {
+            setLikesBusy(false);
+        }
+    }
+
     async function remove() {
         if (!data) return;
         if (!confirm(`Удалить пользователя «${data.user.username}»? Все его прослушивания и лайки удалятся.`)) return;
@@ -125,6 +217,7 @@ export function UserDetailPage() {
     const t = data.totals;
     const isSelf = me?.id === u.id;
     const hours = Math.round(t.listen_ms / 3_600_000);
+    const hoursReal = Math.round(t.listen_ms_real / 3_600_000);
 
     return (
         <div className="space-y-6">
@@ -153,40 +246,20 @@ export function UserDetailPage() {
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2 shrink-0 justify-end">
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={toggleAdmin}
-                        disabled={busy || isSelf}
-                        title={isSelf ? 'Нельзя менять свои права' : undefined}
-                    >
+                    <Button variant="secondary" size="sm" onClick={toggleAdmin} disabled={busy || isSelf}
+                        title={isSelf ? 'Нельзя менять свои права' : undefined}>
                         {u.is_admin ? 'Снять права админа' : 'Сделать админом'}
                     </Button>
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={toggleRequireTg}
-                        disabled={busy || isSelf}
-                    >
+                    <Button variant="secondary" size="sm" onClick={toggleRequireTg} disabled={busy || isSelf}>
                         {u.require_telegram ? 'Снять требование TG' : 'Потребовать TG'}
                     </Button>
                     {u.telegram_id && (
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={unlinkTg}
-                            disabled={busy || isSelf}
-                        >
+                        <Button variant="secondary" size="sm" onClick={unlinkTg} disabled={busy || isSelf}>
                             Отвязать TG
                         </Button>
                     )}
-                    <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={remove}
-                        disabled={busy || isSelf}
-                        title={isSelf ? 'Нельзя удалить себя' : undefined}
-                    >
+                    <Button variant="danger" size="sm" onClick={remove} disabled={busy || isSelf}
+                        title={isSelf ? 'Нельзя удалить себя' : undefined}>
                         Удалить юзера
                     </Button>
                 </div>
@@ -194,6 +267,7 @@ export function UserDetailPage() {
 
             {flash && <Flash kind={flash.kind}>{flash.text}</Flash>}
 
+            {/* Статистика (отображение) */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <StatBox label="Прослушиваний" value={t.listens} />
                 <StatBox label="Уникальных треков" value={t.unique_tracks} />
@@ -201,6 +275,110 @@ export function UserDetailPage() {
                 <StatBox label="Лайков" value={t.likes} />
             </div>
 
+            {/* Редактирование бонусов статистики */}
+            <Card title="Редактировать статистику" description="Бонус прибавляется к реальным данным">
+                <form onSubmit={saveStatBonuses} className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label className="block text-xs text-white/40 mb-1">
+                                Прослушиваний (реальных: {t.listens_real})
+                            </label>
+                            <input type="number" min="0" value={listensBonus}
+                                onChange={(e) => setListensBonus(e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/30" />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-white/40 mb-1">
+                                Уник. треков (реальных: {t.unique_tracks_real})
+                            </label>
+                            <input type="number" min="0" value={uniqueTracksBonus}
+                                onChange={(e) => setUniqueTracksBonus(e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/30" />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-white/40 mb-1">
+                                Часов слушал, бонус мс (реальных: {hoursReal}ч / {t.listen_ms_real}мс)
+                            </label>
+                            <input type="number" min="0" value={listenMsBonus}
+                                onChange={(e) => setListenMsBonus(e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/30" />
+                        </div>
+                    </div>
+                    <Button type="submit" variant="secondary" size="sm" disabled={statBusy}>
+                        {statBusy ? 'Сохраняем…' : 'Сохранить статистику'}
+                    </Button>
+                </form>
+            </Card>
+
+            {/* Лайки — управление */}
+            <Card title={`Лайки (${data.likes.length})`} description="Список всех лайкнутых треков">
+                <div className="space-y-4">
+                    {/* Форма добавить лайк */}
+                    <form onSubmit={addLike} className="flex gap-2 items-end">
+                        <div className="flex-1">
+                            <label className="block text-xs text-white/40 mb-1">Добавить лайк (ID трека)</label>
+                            <input type="number" min="1" placeholder="Например: 3"
+                                value={addTrackId} onChange={(e) => setAddTrackId(e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30" />
+                        </div>
+                        <Button type="submit" variant="secondary" size="sm" disabled={likesBusy || !addTrackId}>
+                            + Добавить
+                        </Button>
+                    </form>
+
+                    {data.likes.length === 0 ? (
+                        <p className="text-white/40 text-sm">Лайков нет.</p>
+                    ) : (
+                        <Table>
+                            <thead>
+                                <tr>
+                                    <Th>ID</Th>
+                                    <Th>Трек</Th>
+                                    <Th>Альбом</Th>
+                                    <Th>Когда</Th>
+                                    <Th></Th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.likes.map((r) => (
+                                    <tr key={r.track_id} className="hover:bg-white/[0.02]">
+                                        <Td className="text-white/30 font-mono text-xs">{r.track_id}</Td>
+                                        <Td className="text-white">{r.title ?? `#${r.track_id}`}</Td>
+                                        <Td className="text-white/50">{r.album_title ?? '—'}</Td>
+                                        <Td className="text-white/50 text-xs">{formatTs(r.created_at)}</Td>
+                                        <Td>
+                                            <button
+                                                onClick={() => removeLike(r.track_id)}
+                                                disabled={likesBusy}
+                                                className="text-xs text-red-400 hover:text-red-300 disabled:opacity-40"
+                                            >
+                                                Удалить
+                                            </button>
+                                        </Td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </Table>
+                    )}
+                </div>
+            </Card>
+
+            {/* Сброс пароля */}
+            <Card title="Сброс пароля">
+                <form onSubmit={resetPassword} className="flex gap-2 items-end">
+                    <div className="flex-1">
+                        <label className="block text-xs text-white/40 mb-1">Новый пароль (мин. 8 символов)</label>
+                        <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="Введите новый пароль"
+                            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30" />
+                    </div>
+                    <Button type="submit" variant="secondary" size="sm" disabled={pwBusy || newPassword.length < 8}>
+                        {pwBusy ? 'Сохраняем…' : 'Сменить пароль'}
+                    </Button>
+                </form>
+            </Card>
+
+            {/* Топ треков */}
             <Card title="Топ треков пользователя" description="10 самых часто прослушиваемых">
                 {data.top_tracks.length === 0 ? (
                     <p className="text-white/40 text-sm">Пользователь ничего не слушал.</p>
@@ -225,32 +403,6 @@ export function UserDetailPage() {
                     </Table>
                 )}
             </Card>
-
-            <Card title="Последние лайки" description="20 самых свежих">
-                {data.recent_likes.length === 0 ? (
-                    <p className="text-white/40 text-sm">Лайков нет.</p>
-                ) : (
-                    <Table>
-                        <thead>
-                            <tr>
-                                <Th>Трек</Th>
-                                <Th>Альбом</Th>
-                                <Th>Когда</Th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {data.recent_likes.map((r) => (
-                                <tr key={r.track_id} className="hover:bg-white/[0.02]">
-                                    <Td className="text-white">{r.title ?? `#${r.track_id}`}</Td>
-                                    <Td className="text-white/50">{r.album_title ?? '—'}</Td>
-                                    <Td className="text-white/50 text-xs">{formatTs(r.created_at)}</Td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </Table>
-                )}
-            </Card>
         </div>
     );
 }
-

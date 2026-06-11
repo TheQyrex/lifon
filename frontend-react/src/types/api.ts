@@ -76,6 +76,11 @@ export interface AuthResponse {
     user: User;
 }
 
+export interface NeedsPasswordResponse {
+    ok: true;
+    needs_password: true;
+}
+
 export interface TelegramAuthData {
     id: number;
     first_name: string;

@@ -46,39 +46,87 @@ auth.post('/login', async (c) => {
     if (!limit.ok) return c.json({ ok: false, error: 'rate_limited' }, 429);
 
     let username: string;
-    let password: string;
+    let password: string | null;
     try {
         const body = await c.req.json<{ username?: unknown; password?: unknown }>();
         username = validateUsername(body.username);
-        password = validatePassword(body.password);
+        // password необязателен — пустая строка или отсутствие = шаг 1 (проверка username)
+        const rawPw = body.password;
+        password = (typeof rawPw === 'string' && rawPw.length > 0)
+            ? validatePassword(rawPw)
+            : null;
     } catch (err) {
         return validationErrorResponse(c, err);
     }
-
-    // Per-username lockout: даже если у атакера много IP, на один аккаунт даём всего
-    // 5 неудачных попыток в 15 минут. Это блокирует распределённый brute-force.
-    const lockoutKey = `login:fail:${username}`;
-    const failCheck = await rateLimit(c.env, lockoutKey, 5, 15 * 60);
-    if (!failCheck.ok) return c.json({ ok: false, error: 'account_locked', message: 'Слишком много попыток. Попробуйте позже.' }, 429);
 
     const user = await c.env.DB.prepare(
         'SELECT id, username, password_hash, password_salt, password_iter, is_admin, telegram_id, require_telegram FROM users WHERE username = ?',
     ).bind(username).first<UserRow>();
 
-    // Telegram-only account — no password was ever set
-    if (user && user.password_iter === 0) {
-        return c.json({ ok: false, error: 'telegram_only', message: 'Этот аккаунт входит через Telegram' }, 403);
+    if (!user) {
+        // Timing-safe: скрываем факт существования username
+        if (password) {
+            await verifyPassword(password, {
+                hash: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+                salt: 'AAAAAAAAAAAAAAAAAAAAAA',
+                iterations: 100_000,
+            }).catch(() => false);
+        }
+        return c.json({ ok: false, error: 'invalid_credentials' }, 401);
     }
 
-    // Constant-time-ish: still run a dummy PBKDF2 when the user is missing
-    // so timing doesn't leak whether the username exists.
-    if (!user) {
-        await verifyPassword(password, {
-            hash: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-            salt: 'AAAAAAAAAAAAAAAAAAAAAA',
-            iterations: 100_000,
-        }).catch(() => false);
-        return c.json({ ok: false, error: 'invalid_credentials' }, 401);
+    // Пользователь без пароля (password_iter = 0)
+    if (user.password_iter === 0) {
+        // Аккаунт с Telegram без пароля — только Telegram-вход
+        if (user.telegram_id && !password) {
+            return c.json({ ok: false, error: 'telegram_only', message: 'Этот аккаунт входит через Telegram' }, 403);
+        }
+
+        if (!password) {
+            // Шаг 1: пароль не задан → просим пользователя придумать новый
+            return c.json({ ok: true, needs_password: true });
+        }
+
+        // Шаг 2: пользователь придумал новый пароль → сохраняем и выдаём токен
+        const maintenance = await getMaintenanceState(c.env.DB);
+        if (maintenance.enabled && !user.is_admin) {
+            return c.json({ ok: false, error: 'maintenance', message: maintenance.message }, 503);
+        }
+        const { hash, salt, iterations } = await hashPassword(password);
+        await c.env.DB.prepare(
+            'UPDATE users SET password_hash = ?, password_salt = ?, password_iter = ?, last_seen_at = unixepoch() WHERE id = ?',
+        ).bind(hash, salt, iterations, user.id).run();
+        const firstToken = await signJwt(
+            { sub: user.id, name: user.username, adm: user.is_admin ? 1 : 0 },
+            c.env.JWT_SECRET,
+        );
+        return c.json({
+            ok: true,
+            token: firstToken,
+            user: {
+                id: user.id,
+                username: user.username,
+                is_admin: !!user.is_admin,
+                telegram_id: user.telegram_id,
+                require_telegram: !!user.require_telegram,
+            },
+        });
+    }
+
+    // Обычный вход с паролем
+    if (!password) {
+        // Пользователь уже имеет пароль, но не прислал его — просим ввести
+        return c.json({ ok: false, error: 'password_required' }, 400);
+    }
+
+    // Per-username lockout — только для аккаунтов с паролем, только при неудачах
+    const windowSec = 15 * 60;
+    const bucket = Math.floor(Date.now() / 1000 / windowSec);
+    const lockoutKvKey = `rl:login:fail:${username}:${bucket}`;
+    const failRaw = await c.env.RATELIMIT.get(lockoutKvKey).catch(() => null);
+    const failCount = failRaw ? parseInt(failRaw, 10) || 0 : 0;
+    if (failCount >= 5) {
+        return c.json({ ok: false, error: 'account_locked', message: 'Слишком много попыток. Попробуйте позже.' }, 429);
     }
 
     const ok = await verifyPassword(password, {
@@ -86,7 +134,10 @@ auth.post('/login', async (c) => {
         salt: user.password_salt,
         iterations: user.password_iter,
     });
-    if (!ok) return c.json({ ok: false, error: 'invalid_credentials' }, 401);
+    if (!ok) {
+        await c.env.RATELIMIT.put(lockoutKvKey, String(failCount + 1), { expirationTtl: windowSec + 5 }).catch(() => {});
+        return c.json({ ok: false, error: 'invalid_credentials' }, 401);
+    }
 
     const maintenance = await getMaintenanceState(c.env.DB);
     if (maintenance.enabled && !user.is_admin) {
