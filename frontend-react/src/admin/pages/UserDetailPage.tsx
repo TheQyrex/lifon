@@ -59,10 +59,10 @@ export function UserDetailPage() {
     const [newPassword, setNewPassword] = useState('');
     const [pwBusy, setPwBusy] = useState(false);
 
-    // Stat bonuses
-    const [listensBonus, setListensBonus] = useState('0');
-    const [listenMsBonus, setListenMsBonus] = useState('0');
-    const [uniqueTracksBonus, setUniqueTracksBonus] = useState('0');
+    // Stat bonuses (listenMinutesBonus хранится в минутах для UI, конвертируется в мс при сохранении)
+    const [listensBonus, setListensBonus] = useState('');
+    const [listenMinutesBonus, setListenMinutesBonus] = useState('');
+    const [uniqueTracksBonus, setUniqueTracksBonus] = useState('');
     const [statBusy, setStatBusy] = useState(false);
 
     // Likes management
@@ -79,7 +79,7 @@ export function UserDetailPage() {
             const res = await api.get<UserDetail>(`/admin/users/${id}`);
             setData(res);
             setListensBonus(String(res.totals.listens_bonus));
-            setListenMsBonus(String(res.totals.listen_ms_bonus));
+            setListenMinutesBonus(String(Math.round(res.totals.listen_ms_bonus / 60_000)));
             setUniqueTracksBonus(String(res.totals.unique_tracks_bonus));
             setError(null);
         } catch (err) {
@@ -155,7 +155,7 @@ export function UserDetailPage() {
         try {
             await api.patch(`/admin/users/${data.user.id}`, {
                 listens_bonus: Math.max(0, parseInt(listensBonus, 10) || 0),
-                listen_ms_bonus: Math.max(0, parseInt(listenMsBonus, 10) || 0),
+                listen_ms_bonus: Math.max(0, parseInt(listenMinutesBonus, 10) || 0) * 60_000,
                 unique_tracks_bonus: Math.max(0, parseInt(uniqueTracksBonus, 10) || 0),
             });
             setFlash({ kind: 'success', text: 'Статистика обновлена' });
@@ -216,8 +216,7 @@ export function UserDetailPage() {
     const u = data.user;
     const t = data.totals;
     const isSelf = me?.id === u.id;
-    const hours = Math.round(t.listen_ms / 3_600_000);
-    const hoursReal = Math.round(t.listen_ms_real / 3_600_000);
+    const minutes = Math.round(t.listen_ms / 60_000);
 
     return (
         <div className="space-y-6">
@@ -271,7 +270,7 @@ export function UserDetailPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <StatBox label="Прослушиваний" value={t.listens} />
                 <StatBox label="Уникальных треков" value={t.unique_tracks} />
-                <StatBox label="Часов" value={hours} />
+                <StatBox label="Минут" value={minutes} />
                 <StatBox label="Лайков" value={t.likes} />
             </div>
 
@@ -297,10 +296,10 @@ export function UserDetailPage() {
                         </div>
                         <div>
                             <label className="block text-xs text-white/40 mb-1">
-                                Часов слушал, бонус мс (реальных: {hoursReal}ч / {t.listen_ms_real}мс)
+                                Минут прослушано, бонус (реальных: {Math.round(t.listen_ms_real / 60_000)} мин)
                             </label>
-                            <input type="number" min="0" value={listenMsBonus}
-                                onChange={(e) => setListenMsBonus(e.target.value)}
+                            <input type="number" min="0" value={listenMinutesBonus}
+                                onChange={(e) => setListenMinutesBonus(e.target.value)}
                                 className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/30" />
                         </div>
                     </div>
