@@ -97,6 +97,8 @@ export function AuthScreen() {
         script.setAttribute('data-size', 'large');
         script.setAttribute('data-radius', '20');
         script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+        // На мобильных браузерах TG использует redirect вместо JS callback
+        script.setAttribute('data-auth-url', window.location.origin + '/api/auth/telegram/redirect');
         script.setAttribute('data-request-access', 'write');
         script.async = true;
         tgRef.current?.appendChild(script);
@@ -105,6 +107,31 @@ export function AuthScreen() {
             script.remove();
             delete (window as any).onTelegramAuth;
         };
+    }, []);
+
+    // Обработка редиректов от мобильного TG виджета
+    useEffect(() => {
+        const hash = window.location.hash;
+        if (!hash) return;
+
+        if (hash.startsWith('#tg_new=')) {
+            try {
+                const tgData = JSON.parse(atob(decodeURIComponent(hash.slice('#tg_new='.length)))) as TelegramAuthData;
+                window.history.replaceState(null, '', window.location.pathname + window.location.search);
+                setBusy(true);
+                void loginWithTelegram(tgData).catch((err) => {
+                    setError(err instanceof Error ? err.message : 'Ошибка входа через Telegram');
+                    setBusy(false);
+                });
+            } catch {
+                window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            }
+        } else if (hash.startsWith('#tg_error=')) {
+            const msg = decodeURIComponent(hash.slice('#tg_error='.length));
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            setError(msg);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // ── Шаг 1: проверяем username ─────────────────────────────────────────────
@@ -241,11 +268,11 @@ export function AuthScreen() {
                         : 'LifonMUSIC'}
                 </p>
                 <div className="auth-form">
-                    {/* TG-виджет: всегда в DOM, виден только на нужных шагах */}
+                    {/* TG-виджет: всегда в DOM, виден только на шаге username */}
                     <div
                         ref={tgRef}
                         className="tg-btn-wrapper"
-                        style={{ display: step === 'username' || step === 'link_telegram' ? '' : 'none' }}
+                        style={{ display: step === 'username' ? '' : 'none' }}
                     />
 
                     {error && <p className="auth-error">{error}</p>}
@@ -336,7 +363,7 @@ export function AuthScreen() {
                                 marginTop: 4,
                                 marginBottom: 12,
                             }}>
-                                Или войди в аккаунт через Telegram выше
+                                Привяжи Telegram позже в настройках профиля
                             </p>
                             <button
                                 className="btn-primary"

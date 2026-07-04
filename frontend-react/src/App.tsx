@@ -30,6 +30,7 @@ import { UploadsPage } from '@/admin/pages/UploadsPage';
 import { SupportersPage } from '@/admin/pages/SupportersPage';
 import { AchievementsPage } from '@/admin/pages/AchievementsPage';
 import { useAuth } from '@/store/auth';
+import { setToken } from '@/lib/api';
 import { useLikes } from '@/store/likes';
 import { usePlayer } from '@/store/player';
 import { useLyrics } from '@/store/lyrics';
@@ -61,6 +62,11 @@ export default function App() {
     const loadAchievements = useAchievements((s) => s.load);
 
     useEffect(() => {
+        const hash = window.location.hash;
+        if (hash.startsWith('#tg_auth=')) {
+            setToken(decodeURIComponent(hash.slice('#tg_auth='.length)));
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
         bootstrap();
     }, [bootstrap]);
 

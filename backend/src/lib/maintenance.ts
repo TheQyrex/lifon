@@ -61,7 +61,7 @@ export const maintenanceGate: MiddlewareHandler<AppEnv> = async (c, next) => {
         return;
     }
 
-    if (c.req.path === '/auth/login') {
+    if (c.req.path.startsWith('/auth/')) {
         await next();
         return;
     }

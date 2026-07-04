@@ -311,6 +311,70 @@ auth.post('/telegram/complete', async (c) => {
     return c.json({ ok: true, token, user: { id: inserted.id, username, is_admin: false } });
 });
 
+// Redirect-based Telegram auth for mobile browsers.
+// Telegram sends user data as query params; we verify, then redirect back to the frontend.
+auth.get('/telegram/redirect', async (c) => {
+    const frontendBase = (c.env.ASSETS_BASE || c.env.ALLOWED_ORIGINS.split(',')[0])
+        .trim().replace(/\/+$/, '');
+    const errRedirect = (msg: string) =>
+        Response.redirect(`${frontendBase}/#tg_error=${encodeURIComponent(msg)}`, 302);
+
+    const botToken = c.env.TELEGRAM_BOT_TOKEN;
+    if (!botToken) return errRedirect('Telegram не настроен');
+
+    const limit = await rateLimit(c.env, `tg_redir:${clientIp(c.req.raw)}`, 20, 5 * 60);
+    if (!limit.ok) return errRedirect('Слишком много запросов, подожди немного');
+
+    const url = new URL(c.req.url);
+    const params: Record<string, string> = {};
+    url.searchParams.forEach((value, key) => { params[key] = value; });
+
+    const hash = params.hash;
+    delete params.hash;
+
+    if (!hash) return errRedirect('Ошибка авторизации');
+
+    const authDate = Number(params.auth_date);
+    if (!authDate || Date.now() / 1000 - authDate > 86400) {
+        return errRedirect('Данные устарели, попробуй снова');
+    }
+
+    if (!(await verifyTelegramHash(params, hash, botToken))) {
+        return errRedirect('Ошибка верификации Telegram');
+    }
+
+    const telegramId = Number(params.id);
+    if (!telegramId || !Number.isFinite(telegramId)) return errRedirect('Ошибка данных');
+
+    const existing = await c.env.DB.prepare(
+        'SELECT id, username, is_admin FROM users WHERE telegram_id = ?',
+    ).bind(telegramId).first<{ id: number; username: string; is_admin: number }>();
+
+    if (existing) {
+        const maintenance = await getMaintenanceState(c.env.DB);
+        if (maintenance.enabled && !existing.is_admin) return errRedirect(maintenance.message);
+        await c.env.DB.prepare('UPDATE users SET last_seen_at = unixepoch() WHERE id = ?').bind(existing.id).run();
+        const token = await signJwt(
+            { sub: existing.id, name: existing.username, adm: existing.is_admin ? 1 : 0 },
+            c.env.JWT_SECRET,
+        );
+        return Response.redirect(`${frontendBase}/#tg_auth=${encodeURIComponent(token)}`, 302);
+    }
+
+    const maintenance = await getMaintenanceState(c.env.DB);
+    if (maintenance.enabled) return errRedirect(maintenance.message);
+
+    const rawTgName = typeof params.username === 'string' ? params.username : '';
+    const cleaned = rawTgName.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 24);
+    let suggestedUsername = cleaned.length >= 3 ? cleaned : `tg_${telegramId}`;
+    const taken = await c.env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(suggestedUsername).first();
+    if (taken) suggestedUsername = `tg_${telegramId}`;
+
+    const tgData = { ...params, hash };
+    const encoded = encodeURIComponent(btoa(JSON.stringify(tgData)));
+    return Response.redirect(`${frontendBase}/#tg_new=${encoded}`, 302);
+});
+
 // Привязка Telegram к уже существующему аккаунту (вошедший пользователь без TG).
 auth.post('/telegram/link', requireAuth, async (c) => {
     const limit = await rateLimit(c.env, `tg_link:${clientIp(c.req.raw)}`, 10, 5 * 60);
