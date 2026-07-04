@@ -118,12 +118,9 @@ export function AuthScreen() {
             try {
                 const tgData = JSON.parse(atob(decodeURIComponent(hash.slice('#tg_new='.length)))) as TelegramAuthData;
                 window.history.replaceState(null, '', window.location.pathname + window.location.search);
-                setBusy(true);
-                loginWithTelegram(tgData)
-                    .catch((err) => {
-                        setError(err instanceof Error ? err.message : 'Ошибка входа через Telegram');
-                    })
-                    .finally(() => setBusy(false));
+                loginWithTelegram(tgData).catch((err) => {
+                    setError(err instanceof Error ? err.message : 'Ошибка входа через Telegram');
+                });
             } catch {
                 window.history.replaceState(null, '', window.location.pathname + window.location.search);
             }
