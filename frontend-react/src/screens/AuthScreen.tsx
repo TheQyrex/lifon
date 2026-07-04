@@ -25,6 +25,8 @@ export function AuthScreen() {
     const tgRef = useRef<HTMLDivElement>(null);
     // Ссылка на текущий обработчик TG-авторизации (меняется в зависимости от шага)
     const tgHandlerRef = useRef<(data: TelegramAuthData) => void>(async () => {});
+    // Блокировка дублирующего JS callback от виджета после мобильного редиректа
+    const tgHashHandledRef = useRef(false);
 
     // Если вернули pendingUsername — переключаем на шаг установки пароля
     useEffect(() => {
@@ -58,6 +60,7 @@ export function AuthScreen() {
     useEffect(() => {
         if (step === 'link_telegram') {
             tgHandlerRef.current = async (tgUser) => {
+                if (tgHashHandledRef.current) return;
                 setError(null);
                 setBusy(true);
                 try {
@@ -66,11 +69,13 @@ export function AuthScreen() {
                 } catch (err) {
                     if (err instanceof ApiException) setError(err.message);
                     else setError('Ошибка привязки Telegram');
+                } finally {
                     setBusy(false);
                 }
             };
         } else {
             tgHandlerRef.current = async (tgUser) => {
+                if (tgHashHandledRef.current) return;
                 setError(null);
                 setBusy(true);
                 try {
@@ -79,6 +84,7 @@ export function AuthScreen() {
                     if (err instanceof ApiException) setError(err.message);
                     else if (err instanceof Error) setError(err.message);
                     else setError('Ошибка входа через Telegram');
+                } finally {
                     setBusy(false);
                 }
             };
@@ -118,6 +124,7 @@ export function AuthScreen() {
             try {
                 const tgData = JSON.parse(atob(decodeURIComponent(hash.slice('#tg_new='.length)))) as TelegramAuthData;
                 window.history.replaceState(null, '', window.location.pathname + window.location.search);
+                tgHashHandledRef.current = true; // блокируем дублирующий JS callback от виджета
                 loginWithTelegram(tgData).catch((err) => {
                     setError(err instanceof Error ? err.message : 'Ошибка входа через Telegram');
                 });
